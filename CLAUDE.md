@@ -4,6 +4,12 @@ This repo tracks materials for **Team BananaPhil**'s entry to **Vietnam AI Innov
 
 ## Where things live
 
+### `ARCHITECTURE.md` (repo root)
+
+A concise, scannable architecture map — system overview, the chat pipeline, components, stack,
+repo layout, and key invariants — that links into the detailed guide below for depth. Read this
+first for fast orientation; it does not replace the canonical guide.
+
 ### `hackathon_docs/guide/` — our active strategy & pitch docs (canonical)
 
 | File | Purpose |
@@ -13,7 +19,7 @@ This repo tracks materials for **Team BananaPhil**'s entry to **Vietnam AI Innov
 | `Project-Pitch.md` | Our finalized project name (**TrustTim, by Team BananaPhil**), solution brief (what/for whom/standout), and elevator pitch. |
 | `VAIC2026_Scoring-Criteria-Guide.md` | The official 3-round evaluation pipeline (AI pre-screen → judge review top 30–40 → live Demo Day top 10) and the 100-point, 6-criteria rubric, with per-criterion guidance and an effort-allocation table. |
 | `VAIC2026_Problem-Statement-Analysis.md` | Section-4-framework analysis of the actual problem statement: end-user/pain extraction, recommended narrow scope (BHYT + procedures + booking + emergency safety), the death-trap vs. winning-shape contrast, the proposed one-sentence product framing, a mapping to the 100-point rubric, and the list of critical open questions the team still needs to answer. |
-| `TrustTim_Architecture-and-Implementation-Guide.md` | The buildable blueprint for TrustTim: system architecture (Next.js all-in-one on Vercel; **all three models pay-as-you-go on FPT AI Factory via one OpenAI-compatible client — `gpt-oss-20b` (LLM) + `vietnamese-embedding` + `bge-reranker-v2-m3`**; **hybrid keyword + semantic retrieval over our own pgvector** — with the case study's deterministic rules/dictionary retained as the keyword arm + a keyword-only fallback; **two input guardrails run before retrieval — an LLM-classifier emergency guardrail that escalates + raises a mocked support case (fail-safe on classifier error), then a scope filter that answers any non-hospital question with a fixed default response**), a tool-by-tool stack table (why/benefits/drawbacks), knowledge/retrieval design (manual chunking, prose→structured-logic, query normalization, pgvector schema), a cost & economics section (FPT free credits cover the demo), repo structure, an 8-phase build/deploy/test plan mapped to `AI Project Guidebook.md` + the 48h timeline, and a risk register (incl. gpt-oss-20b VN-quality swap path). Cost/lightweight approach follows `university_admissions_chatbot_case_study.md`. |
+| `TrustTim_Architecture-and-Implementation-Guide.md` | The buildable blueprint for TrustTim: system architecture (Next.js all-in-one on Vercel; **all three models pay-as-you-go on FPT AI Factory via one OpenAI-compatible client — `gpt-oss-20b` (LLM) + `vietnamese-embedding` + `bge-reranker-v2-m3`**; **hybrid keyword + semantic retrieval over our own pgvector** — with the case study's deterministic rules/dictionary retained as the keyword arm + a keyword-only fallback; **multi-intent aware — multi-label topics as a soft filter + the reranker sorts across topics, and booking is a separate `booking_intent` action so a compound query gets both an informational answer and the booking handoff**; **two input guardrails run before retrieval — an LLM-classifier emergency guardrail that escalates + raises a mocked support case (fail-safe on classifier error), then a scope filter that answers any non-hospital question with a fixed default response**), a tool-by-tool stack table (why/benefits/drawbacks), knowledge/retrieval design (manual chunking, prose→structured-logic, query normalization, pgvector schema), a cost & economics section (FPT free credits cover the demo), repo structure, an 8-phase build/deploy/test plan mapped to `AI Project Guidebook.md` + the 48h timeline, and a risk register (incl. gpt-oss-20b VN-quality swap path). Cost/lightweight approach follows `university_admissions_chatbot_case_study.md`. |
 | `AI Project Guidebook.md` | General phase-by-phase AI/LLM project methodology (Frame → Choose Approach → Select Models → Prepare Data → Build → Evaluate → Deploy → Agentic → Iterate), with the escalation ladder, core mental models, and per-phase checklists. The methodology the architecture guide applies. |
 | `university_admissions_chatbot_case_study.md` | Real-world case study (Yersin University Vietnamese admissions RAG chatbot) — 2,000–4,000 conversations/day at ~$2/day via knowledge-demand analysis, manual chunking, prose→structured-logic, and deterministic-first multi-stage retrieval. The cost-effective/lightweight blueprint TrustTim's architecture follows. |
 
@@ -31,6 +37,7 @@ Contains the original source PDFs (scanned/exported) and superseded Vietnamese-l
 
 ## Quick lookup — "I need to..."
 
+- **...get a fast, high-level map of the system (pipeline, components, invariants) without reading the full guide** → `ARCHITECTURE.md`
 - **...check hackathon rules, timeline, prize money, or who's judging** → `hackathon_docs/guide/VAIC2026_Hackers-guidebook.en.md`
 - **...plan what to build hour-by-hour, or re-check our winning strategy** → `hackathon_docs/guide/VAIC2026_Winning-Playbook.md`
 - **...get our project name or pitch copy for slides/submission** → `hackathon_docs/guide/Project-Pitch.md`
