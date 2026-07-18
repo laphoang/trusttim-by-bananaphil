@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       at: new Date().toISOString(),
       message,
       responseType: result.responseType,
-      citationCount: result.citations.length,
+      citations: result.citations.map((c) => ({ title: c.title, sourceUrl: c.sourceUrl })),
       ...result.debug,
     }),
   );

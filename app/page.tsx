@@ -195,24 +195,22 @@ function BookingPanel() {
 }
 
 function CitationChips({ citations }: { citations: Citation[] }) {
-  if (!citations.length) return null;
+  const withUrl = citations.filter((c) => c.sourceUrl);
+  if (!withUrl.length) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-1.5 border-t border-current/10 pt-2">
-      {citations.map((c, i) => (
-        <span
+      {withUrl.map((c, i) => (
+        <a
           key={i}
+          href={c.sourceUrl!}
+          target="_blank"
+          rel="noreferrer"
           title={c.freshness ?? undefined}
-          className="rounded-full border border-current/20 bg-white/60 px-2 py-0.5 text-xs"
+          className="rounded-full border border-current/20 bg-white/60 px-2 py-0.5 text-xs underline"
         >
-          {c.sourceUrl ? (
-            <a href={c.sourceUrl} target="_blank" rel="noreferrer" className="underline">
-              {c.title ?? c.sourceUrl}
-            </a>
-          ) : (
-            c.title ?? "nguồn"
-          )}
+          {c.sourceUrl}
           {c.isSynthetic && " · minh hoạ"}
-        </span>
+        </a>
       ))}
     </div>
   );
