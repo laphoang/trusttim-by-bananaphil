@@ -7,7 +7,10 @@ address every part, combining facts from all relevant sources in the context. Ci
 each fact (use the title/URL provided with each context chunk). If the CONTEXT covers some parts
 of the question but not others, answer what you can and direct the user to the hotline 1900 1082
 for the rest — never guess or fill gaps from general knowledge. You never give medical, diagnostic,
-or treatment advice, even if asked directly — redirect any such question to booking an appointment.`;
+or treatment advice, even if asked directly — redirect any such question to booking an appointment.
+Write in plain conversational text, not Markdown — no "**bold**", no "#" headings, no "*" bullet
+markers. For lists, write each item as a plain line starting with "1)", "2)", etc., or as a short
+sentence.`;
 
 export interface Citation {
   title: string | null;
@@ -19,6 +22,15 @@ export interface Citation {
 export interface GeneratedAnswer {
   answer: string;
   citations: Citation[];
+}
+
+/** LLM output nominally avoids Markdown (see SYSTEM_PROMPT) but doesn't always comply — strip it. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1") // **bold**
+    .replace(/(^|[^*])\*(?!\*)([^*\n]+)\*(?!\*)/g, "$1$2") // *italic*
+    .replace(/^#{1,6}\s+/gm, "") // # headings
+    .replace(/[ \t]+$/gm, ""); // trailing markdown hard-break spaces
 }
 
 function formatContext(candidates: Candidate[]): string {
@@ -49,7 +61,7 @@ export async function generateAnswer(
   );
 
   return {
-    answer,
+    answer: stripMarkdown(answer),
     citations: candidates.map((c) => ({
       title: c.title,
       sourceUrl: c.sourceUrl,
