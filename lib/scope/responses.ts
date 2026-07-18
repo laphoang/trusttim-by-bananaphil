@@ -1,7 +1,7 @@
 /** Fixed out-of-scope default response (Implementation Spec §4.4) — includes harmful/abusive queries. */
 export const OUT_OF_SCOPE_MESSAGE =
   "Xin lỗi, TrustTim chỉ hỗ trợ các câu hỏi liên quan đến Bệnh viện Tim Hà Nội — như đặt lịch khám, " +
-  "bảo hiểm y tế (BHYT), và quy trình khám chữa bệnh. Với các vấn đề khác, vui lòng liên hệ tổng đài " +
+  "bảo hiểm y tế , thông tin về bệnh viện, lịch khám bác sĩ, và quy trình khám chữa bệnh. Với các vấn đề khác, vui lòng liên hệ tổng đài " +
   "1900 1082.";
 
 /** Grounding-gate "I don't know" — distinct from OUT_OF_SCOPE_MESSAGE (in-scope but ungrounded, not off-topic). */

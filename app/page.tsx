@@ -150,7 +150,7 @@ export default function ChatPage() {
       role: "assistant",
       text:
         "Xin chào! Tôi là TrustTim, trợ lý thông tin của Bệnh viện Tim Hà Nội. " +
-        "Tôi có thể giúp bạn về đặt lịch khám, bảo hiểm y tế (BHYT), quy trình khám chữa bệnh, " +
+        "Tôi có thể hỗ trợ thông tin về đặt lịch khám, bảo hiểm y tế , quy trình khám chữa bệnh, " +
         "thông tin bệnh viện, và lịch khám bác sĩ. Bạn cần hỗ trợ gì?",
       responseType: "grounded_answer",
     },
@@ -197,7 +197,7 @@ export default function ChatPage() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: "Xin lỗi, đã có lỗi kết nối. Vui lòng thử lại hoặc gọi tổng đài 1900 1082.",
+          text: "Xin lỗi, đã có lỗi kết nối. Vui lòng thử lại hoặc gọi tổng đài 1900 1082 để được hỗ trợ.",
           responseType: "classifier_failsafe",
         },
       ]);
