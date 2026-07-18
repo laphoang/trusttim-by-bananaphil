@@ -210,26 +210,34 @@ USER QUESTION:
 
 ### 4.4 Fixed response copy (the six response types, Architecture guide §6.3)
 
-**Serious-emergency escalation** (severity `serious` — Architecture guide §6.1; **draft only, the
-doctor must review and sign off before this ships**, grounded in the hospital's public 115 line and
-HD.25.01 if obtainable):
+**Serious-emergency escalation** (severity `serious` — Architecture guide §6.1; **doctor-authored,
+verbatim from `hackathon_docs/guide/trusttim_by_bananaphil_knowledge_base.md` §7** — no longer a
+draft):
 
 ```
-Đây có thể là một tình huống cấp cứu. Vui lòng gọi ngay 115 hoặc đến Khoa Cấp cứu gần nhất.
-TrustTim không thể xử lý các tình huống khẩn cấp — sự an toàn của bạn là ưu tiên hàng đầu.
-```
-("This may be an emergency. Please call 115 immediately or go to the nearest Emergency
-Department. TrustTim cannot handle emergencies — your safety is the priority.")
+Tình trạng [...] có thể là một cấp cứu nguy hiểm. Vui lòng gọi cấp cứu 115 hoặc đến cơ sở y tế gần
+nhất ngay lập tức để được hướng dẫn và hỗ trợ kịp thời.
 
-**Normal-symptom redirect** (severity `normal` — Architecture guide §6.1; **draft, doctor review
-required**):
+Nếu thuận tiện, Quý vị có thể đến trực tiếp Khoa Cấp cứu của Bệnh viện Tim Hà Nội:
+1. Cơ sở 1: 92 Trần Hưng Đạo, phường Cửa Nam, Hà Nội
+2. Cơ sở 2: 695 Lạc Long Quân, phường Tây Hồ, Hà Nội
+
+Để được hỗ trợ nhanh, vui lòng gọi tổng đài Bệnh viện Tim Hà Nội: 19001082.
+
+Các trường hợp cấp cứu tại bệnh viện sẽ được ưu tiên xử trí trong thời gian sớm nhất.
+```
+The `[...]` placeholder is filled at render time with a short restatement of the matched symptom
+(e.g. "Tình trạng đau ngực dữ dội có thể là một cấp cứu nguy hiểm.").
+
+**Normal-symptom redirect** (severity `normal` — Architecture guide §6.1; **doctor-authored,
+verbatim from the same source, §6**):
 
 ```
-TrustTim không thể thăm khám hoặc chẩn đoán triệu chứng. Để được đánh giá chính xác, vui lòng đặt
-lịch khám tại Bệnh viện Tim Hà Nội. [Đặt lịch khám ngay]
+Triệu chứng bạn đang gặp có thể liên quan đến vấn đề tim mạch và nên được kiểm tra sớm.
+👉 Bạn nên đặt lịch khám tim mạch trong thời gian gần nhất để bác sĩ đánh giá và tư vấn phù hợp.
+👉 Nếu cần, tôi có thể giúp bạn đặt lịch ngay.
 ```
-("TrustTim cannot examine or diagnose symptoms. For a proper assessment, please book an
-appointment at Hanoi Heart Hospital. [Book an appointment now]")
+Attach the booking CTA (below) alongside this message.
 
 **Out-of-scope default response** (Architecture guide §6.2 — already finalized there, repeated here
 for completeness):

@@ -1,0 +1,27 @@
+{
+  "_comment": "Seed VI synonym/abbreviation dictionary — terms actually used in trusttim_by_bananaphil_knowledge_base.md. Not exhaustive; extend as more source content is added (Architecture guide §5.6).",
+  "entries": [
+    { "term": "BHYT", "expansions": ["bảo hiểm y tế"], "intent_hint": "bhyt_pricing" },
+    { "term": "CCCD", "expansions": ["căn cước công dân"], "intent_hint": "procedures" },
+    { "term": "BN", "expansions": ["bệnh nhân"], "intent_hint": null },
+    { "term": "ĐM", "expansions": ["động mạch"], "intent_hint": "hospital_info" },
+    { "term": "CS1", "expansions": ["cơ sở 1", "92 Trần Hưng Đạo"], "intent_hint": null },
+    { "term": "CS2", "expansions": ["cơ sở 2", "695 Lạc Long Quân"], "intent_hint": null },
+    { "term": "đặt lịch", "expansions": ["đặt hẹn", "đặt lịch khám", "book lịch", "đăng ký khám online"], "intent_hint": "booking" },
+    { "term": "tái khám", "expansions": ["khám lại", "hẹn khám lại"], "intent_hint": "booking" },
+    { "term": "chuyển tuyến", "expansions": ["giấy chuyển viện", "giấy chuyển cơ sở khám chữa bệnh", "trái tuyến", "đúng tuyến"], "intent_hint": "bhyt_pricing" },
+    { "term": "quy trình khám", "expansions": ["thủ tục khám bệnh", "các bước khám bệnh"], "intent_hint": "procedures" },
+    { "term": "cận lâm sàng", "expansions": ["xét nghiệm", "chỉ định cận lâm sàng"], "intent_hint": "procedures" },
+    { "term": "lịch khám bác sĩ", "expansions": ["lịch làm việc bác sĩ", "bác sĩ trực", "phòng khám số"], "intent_hint": "doctor_schedule" },
+    { "term": "cấp cứu", "expansions": ["khẩn cấp", "emergency", "115"], "intent_hint": "serious" },
+    { "term": "đau ngực", "expansions": ["tức ngực", "bóp nghẹt ngực", "đau thắt ngực"], "intent_hint": "symptom" },
+    { "term": "hồi hộp", "expansions": ["đánh trống ngực", "tim đập nhanh"], "intent_hint": "symptom" },
+    { "term": "khoa DTBN", "expansions": [], "intent_hint": "bhyt_pricing", "note": "abbreviation unconfirmed — verify expansion with the doctor" },
+    { "term": "TS.BS", "expansions": ["Tiến sĩ, Bác sĩ"], "intent_hint": "doctor_schedule" },
+    { "term": "ThS.BS", "expansions": ["Thạc sĩ, Bác sĩ"], "intent_hint": "doctor_schedule" },
+    { "term": "BS.CKI", "expansions": ["Bác sĩ Chuyên khoa I"], "intent_hint": "doctor_schedule" },
+    { "term": "BS.CKII", "expansions": ["Bác sĩ Chuyên khoa II"], "intent_hint": "doctor_schedule" },
+    { "term": "BSNT", "expansions": ["Bác sĩ Nội trú"], "intent_hint": "doctor_schedule" },
+    { "term": "PGS.TS", "expansions": ["Phó Giáo sư, Tiến sĩ"], "intent_hint": "doctor_schedule" }
+  ]
+}

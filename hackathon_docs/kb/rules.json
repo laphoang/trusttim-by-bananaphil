@@ -1,0 +1,58 @@
+[
+  {
+    "rule": "bhyt_coverage_outpatient_self_referral",
+    "if": { "visit_type": "outpatient_self_presented", "correct_tier": false, "card_code": [1, 2, 5] },
+    "then": "Quỹ BHYT thanh toán 50% chi phí thuộc phạm vi được hưởng (thẻ hưởng 100%).",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_outpatient_self_referral",
+    "if": { "visit_type": "outpatient_self_presented", "correct_tier": false, "card_code": [3] },
+    "then": "Quỹ BHYT thanh toán 47,5% chi phí thuộc phạm vi được hưởng (thẻ hưởng 95%).",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_outpatient_self_referral",
+    "if": { "visit_type": "outpatient_self_presented", "correct_tier": false, "card_code": [4] },
+    "then": "Quỹ BHYT thanh toán 40% chi phí thuộc phạm vi được hưởng (thẻ hưởng 80%).",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_full_benefit_exceptions",
+    "if": { "correct_tier": true },
+    "then": "Được hưởng đầy đủ quyền lợi BHYT theo mức hưởng ghi trên thẻ (không bị giảm còn 50%/47,5%/40%).",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_full_benefit_exceptions",
+    "if": { "has_correct_referral_letter": true },
+    "then": "Được hưởng đầy đủ quyền lợi BHYT theo mức hưởng ghi trên thẻ.",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_full_benefit_exceptions",
+    "if": { "has_follow_up_appointment_letter": true },
+    "then": "Được hưởng đầy đủ quyền lợi BHYT theo mức hưởng ghi trên thẻ.",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_emergency",
+    "if": { "visit_type": "emergency" },
+    "then": "Bệnh nhân cấp cứu được hưởng BHYT cấp cứu (đầy đủ quyền lợi theo mức hưởng ghi trên thẻ), không cần thủ tục chuyển tuyến.",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  },
+  {
+    "rule": "bhyt_coverage_inpatient_non_emergency",
+    "if": { "visit_type": "inpatient", "is_emergency": false },
+    "then": "Cần xin chuyển tuyến theo quy định của BHYT để được hưởng quyền lợi khi điều trị nội trú.",
+    "source_url": null,
+    "source": "trusttim_by_bananaphil_knowledge_base.md §3"
+  }
+]

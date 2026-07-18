@@ -33,6 +33,14 @@ first for fast orientation; it does not replace the canonical guide.
 | `PROCEDURE_FOR_PATIENT_RECEPTION_OUTPATIENT_EXAMINATION_TREATMENT.md` | English translation of the hospital's real internal SOP (QT.25.01) for patient reception and outpatient care at Voluntary Area 1 — grounds the product in the hospital's actual workflow and references the real emergency-escalation instruction (HD.25.01). |
 | `Hospital-Website-RAG-Inventory.md` | Investigation of the real hospital website (benhvientimhanoi.vn) for RAG-grounding content: a data inventory table, the directly-usable content found (hospital overview, Voluntary Dept. services, and the full booking/contact block incl. the public 115-emergency line), the pricing/schedule pages that need a scraping decision (JS-rendered, not simple-fetchable), and known gaps not yet investigated. |
 
+### `hackathon_docs/kb/` — the actual built knowledge base (canonical)
+
+| File | Purpose |
+|---|---|
+| `booking.md` / `procedures.md` / `bhyt_pricing.md` / `hospital_info.md` / `doctor_schedule.md` | Manually-chunked KB content, one file per topic, each chunk carrying the `kb_chunks` metadata schema (`id`, `topic`, `title`, `keywords`, `source_url`, `is_synthetic`) from the architecture guide §5.2 — ready to copy into the product repo's `data/kb/` and `lib/rag/ingest.ts`. Built from `hackathon_docs/guide/trusttim_by_bananaphil_knowledge_base.md`. `doctor_schedule.md` flags one sub-table as incomplete (source screenshot too low-res to transcribe reliably) and flags all schedule content as a dated weekly snapshot, not a permanent fact. |
+| `rules.json` | BHYT coverage-percentage-by-card-code decision table (prose → structured logic, per architecture guide §5.4). |
+| `dictionary.json` | Seed Vietnamese synonym/abbreviation dictionary (architecture guide §5.6) — terms actually used in the source content; not exhaustive. |
+
 ### `hackathon_docs/archive/` — historical/original sources only
 
 Contains the original source PDFs (scanned/exported) and superseded Vietnamese-language drafts that predate the reorganization into `guide/` and `problem_statement/`. **Do not open or reference these for future tasks** — the files in `guide/` and `problem_statement/` above are the up-to-date, canonical versions to use instead.
@@ -48,6 +56,7 @@ Contains the original source PDFs (scanned/exported) and superseded Vietnamese-l
 - **...know how to actually build/deploy/test TrustTim, the stack, the FPT AI Factory model endpoints (gpt-oss-20b + vietnamese-embedding + bge-reranker-v2-m3), the hybrid pgvector retrieval design, the 6-category intent taxonomy, the guardrails (symptom/emergency triage + intent/scope filtering), and why each tool** → `hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md`
 - **...follow the general AI/LLM project methodology or phase checklists** → `hackathon_docs/guide/AI Project Guidebook.md`
 - **...get copy-paste-ready schemas/prompts/SQL/env vars/API gotchas before handing this to Cursor** → `hackathon_docs/guide/TrustTim_Implementation-Spec.md`
+- **...get the actual built knowledge base content (chunked FAQ/policy text, BHYT rules, VI dictionary) to drop into the product repo** → `hackathon_docs/kb/`
 - **...see the real-world lightweight/cheap RAG case study that shapes our cost & retrieval approach** → `hackathon_docs/guide/university_admissions_chatbot_case_study.md`
 - **...get a working curl example / exact request-response shape for an FPT AI Factory model call** → `hackathon_docs/guide/llm_api_example.md`
 - **...check what the challenge actually requires us to build** → `hackathon_docs/problem_statement/Hanoi_heart_hospital_problem_statement.md`
