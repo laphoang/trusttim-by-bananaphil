@@ -14,5 +14,5 @@ export const BOOKING_CTA_LABEL = "Đặt lịch khám ngay";
 
 /** A booking-only message (no informational intent) skips retrieval entirely and returns just this. */
 export const BOOKING_ONLY_MESSAGE =
-  "Quý vị có thể đặt lịch khám tại Bệnh viện Tim Hà Nội qua tổng đài 19001082, website, hoặc Zalo. " +
-  "Vui lòng đặt hẹn trước ít nhất 24 giờ.";
+  "Quý vị có thể đặt lịch khám tại Bệnh viện Tim Hà Nội qua Zalo, website, hoặc tổng đài 19001082. " +
+  "Vui lòng đặt lịch hẹn trước ít nhất 24 giờ.";

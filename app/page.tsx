@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BOOKING_CONTACT } from "@/lib/booking/mock-data";
+import { BOOKING_CONTACT, BOOKING_FACILITIES } from "@/lib/booking/mock-data";
 import { BOOKING_CTA_LABEL } from "@/lib/scope/responses";
 
 type ResponseType =
@@ -70,21 +70,25 @@ function Typewriter({ text, animate }: { text: string; animate: boolean }) {
 
 function BookingPanel() {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3 text-sm">
-      <a
-        href={BOOKING_CONTACT.bookingUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded-md bg-brand px-3 py-1.5 font-medium text-white hover:bg-brand/90"
-      >
-        {BOOKING_CTA_LABEL}
-      </a>
+    <div className="mt-3 flex flex-col gap-2 border-t border-current/10 pt-3 text-sm">
+      {BOOKING_FACILITIES.map((f) => (
+        <div key={f.id} className="flex flex-wrap items-center gap-2">
+          <span className="opacity-80">
+            {f.label}: {f.address}
+          </span>
+          <a
+            href={f.bookingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-brand px-3 py-1.5 font-medium text-white hover:bg-brand/90"
+          >
+            {BOOKING_CTA_LABEL}
+          </a>
+        </div>
+      ))}
       <a href={`tel:${BOOKING_CONTACT.hotline}`} className="underline">
-        {BOOKING_CONTACT.hotline}
+        Tổng đài: {BOOKING_CONTACT.hotline}
       </a>
-      <span className="opacity-70">
-        hoặc {BOOKING_CONTACT.zalo} · đặt hẹn trước ít nhất {BOOKING_CONTACT.minHoursInAdvance} giờ
-      </span>
     </div>
   );
 }

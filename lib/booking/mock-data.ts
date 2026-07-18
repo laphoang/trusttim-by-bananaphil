@@ -19,10 +19,33 @@ export const MOCK_DOCTORS: MockDoctor[] = [
   { id: "bs-thuy-ngoc", name: "ThS.BS Lê Thúy Ngọc", room: "Phòng khám số 513", facility: "Cơ sở 2", availableDays: ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6"] },
 ];
 
+export interface BookingFacility {
+  id: "cs1" | "cs2";
+  label: string;
+  address: string;
+  bookingUrl: string;
+  channel: "zalo" | "website";
+}
+
+export const BOOKING_FACILITIES: BookingFacility[] = [
+  {
+    id: "cs1",
+    label: "CS1",
+    address: "92 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội",
+    bookingUrl: "https://zalo.me/s/2972821668579995579/",
+    channel: "zalo",
+  },
+  {
+    id: "cs2",
+    label: "CS2",
+    address: "695 Lạc Long Quân, Tây Hồ, Hà Nội",
+    bookingUrl: "https://benhvientimhanoi.vn/he-thong/hen-kham/index.html",
+    channel: "website",
+  },
+];
+
 export const BOOKING_CONTACT = {
   hotline: "19001082",
-  bookingUrl: "https://benhvientimhanoi.vn/he-thong/hen-kham/index.html",
-  zalo: "Bệnh viện Tim Hà Nội (Zalo OA)",
   minHoursInAdvance: 24,
 };
 

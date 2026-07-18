@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { BOOKING_CONTACT, generateMockSlots } from "@/lib/booking/mock-data";
+import { BOOKING_CONTACT, BOOKING_FACILITIES, generateMockSlots } from "@/lib/booking/mock-data";
 
 /** Mocked schedule + handoff (Architecture guide §4 comp. 6). Clearly labelled as simulated. */
 export async function GET() {
   return NextResponse.json({
     simulated: true,
     contact: BOOKING_CONTACT,
+    facilities: BOOKING_FACILITIES,
     slots: generateMockSlots(),
   });
 }
@@ -26,5 +27,6 @@ export async function POST(req: Request) {
       note: "Việc đặt hẹn chỉ có giá trị sau khi Bệnh viện xác nhận cuộc hẹn.",
     },
     contact: BOOKING_CONTACT,
+    facilities: BOOKING_FACILITIES,
   });
 }
