@@ -110,10 +110,10 @@ export async function rerank(
   }
 
   const body = (await res.json()) as RerankResponse & {
-    meta?: { billed_units?: { total_tokens?: number } };
+    usage?: { total_tokens?: number };
   };
-  if (body.meta?.billed_units?.total_tokens) {
-    recordRerankUsage(body.meta.billed_units.total_tokens);
+  if (body.usage?.total_tokens) {
+    recordRerankUsage(body.usage.total_tokens);
   }
   return body.results
     .map((r) => ({ index: r.index, relevanceScore: r.relevance_score }))

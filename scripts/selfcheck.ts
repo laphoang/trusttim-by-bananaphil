@@ -35,21 +35,38 @@ async function main() {
     console.log("✅ dictionary normalization");
   }
 
-  // 3. FPT envelope unwrap: the real payload sits inside .data, not the top level.
+  // 3. FPT response parsing: the live API returns the standard top-level OpenAI shape (verified
+  // against the real endpoint — the docs' {code,message,data} envelope claim was wrong), but the
+  // client stays tolerant of an envelope too. gpt-oss-20b is a reasoning model, so null content
+  // (ran out of tokens while reasoning) must throw, never silently return "".
   {
-    const body: FptChatResponse = {
+    const topLevel: FptChatResponse = {
+      choices: [{ index: 0, message: { role: "assistant", content: "xin chào" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    };
+    assert.equal(extractChatContent(topLevel), "xin chào");
+
+    const enveloped: FptChatResponse = {
       code: 200,
       message: "Chat completion successful",
       data: {
-        id: "chatcmpl-test",
         choices: [{ index: 0, message: { role: "assistant", content: "xin chào" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
       },
     };
-    assert.equal(extractChatContent(body), "xin chào");
-    assert.throws(() => extractChatContent({ code: 200, message: "", data: { id: "", choices: [], usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } } }));
+    assert.equal(extractChatContent(enveloped), "xin chào", "an optional .data envelope must still unwrap");
+
+    assert.throws(
+      () =>
+        extractChatContent({
+          choices: [{ index: 0, message: { role: "assistant", content: null, reasoning: "still thinking..." }, finish_reason: "length" }],
+        }),
+      "null content (reasoning ran out of max_tokens) must throw, not silently return empty",
+    );
+
     assert.equal(extractJson('```json\n{"a":1}\n```'), '{"a":1}');
-    console.log("✅ FPT envelope unwrap");
+    assert.equal(extractJson('Sure, here you go: {"a":1} thanks!'), '{"a":1}', "stray prose around JSON must be stripped");
+    console.log("✅ FPT response parsing");
   }
 
   // 4. Zod validation: schemas accept the documented shape and reject an invalid enum value.

@@ -3,8 +3,15 @@ import { recordLlmUsage } from "../usage";
 
 /**
  * FPT AI Factory gpt-oss-20b client — one OpenAI-compatible base URL + key.
- * The chat/completions response is wrapped in a non-standard {code, message, data} envelope
- * (Implementation Spec §1.1) — never read response.choices directly, always response.data.choices.
+ *
+ * Verified against the live endpoint (the docs' claim of a wrapping {code, message, data}
+ * envelope does not match reality): the response is the standard top-level OpenAI shape. We stay
+ * tolerant of an optional `.data` envelope anyway in case a future account/region wraps it.
+ *
+ * gpt-oss-20b is a reasoning model: its chain-of-thought comes back in `message.reasoning`, and
+ * `message.content` is null until reasoning finishes. A too-small max_tokens makes it hit
+ * finish_reason "length" while still reasoning, leaving content permanently null — always budget
+ * enough tokens for reasoning + the actual answer.
  */
 
 interface ChatMessage {
@@ -12,21 +19,18 @@ interface ChatMessage {
   content: string;
 }
 
-export interface FptChatResponse {
-  code: number;
-  message: string;
-  data: {
-    id: string;
-    choices: Array<{
-      index: number;
-      message: { role: string; content: string };
-      finish_reason: string;
-    }>;
-    usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-  };
+interface FptChatPayload {
+  choices: Array<{
+    index: number;
+    message: { role: string; content: string | null; reasoning?: string };
+    finish_reason: string;
+  }>;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
 
-const TIMEOUT_MS = 15_000;
+export type FptChatResponse = FptChatPayload | { code: number; message: string; data: FptChatPayload };
+
+const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
@@ -61,6 +65,32 @@ function fptHeaders(): Record<string, string> {
 export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
+  /** gpt-oss-20b reasoning budget — "low" for classifiers, generation can afford more. */
+  reasoningEffort?: "low" | "medium" | "high";
+}
+
+/**
+ * Pure unwrap + content extraction. Exported so selfcheck.ts can verify the parsing logic without
+ * a live API call. Unwraps an optional `.data` envelope, then requires non-empty `message.content`
+ * — a reasoning model that ran out of tokens mid-thought leaves content null, which must surface
+ * as an error (never silently return "").
+ */
+export function extractChatContent(body: FptChatResponse): string {
+  const payload: FptChatPayload = "data" in body ? body.data : body;
+  const choice = payload.choices?.[0];
+  const content = choice?.message?.content;
+  if (typeof content === "string" && content.trim().length > 0) {
+    return content;
+  }
+  throw new Error(
+    `gpt-oss-20b returned empty content (finish_reason=${choice?.finish_reason ?? "unknown"}) — ` +
+      "likely ran out of max_tokens while reasoning; raise maxTokens.",
+  );
+}
+
+function extractUsage(body: FptChatResponse) {
+  const payload: FptChatPayload = "data" in body ? body.data : body;
+  return payload.usage;
 }
 
 /** Plain chat completion — returns the assistant's text content. Used for generation. */
@@ -82,37 +112,41 @@ export async function chat(messages: ChatMessage[], options: ChatOptions = {}): 
       presence_penalty: 0,
       frequency_penalty: 0,
       stream: false,
+      ...(options.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`gpt-oss-20b chat/completions failed: HTTP ${res.status}`);
+    const bodyText = await res.text().catch(() => "");
+    throw new Error(`gpt-oss-20b chat/completions failed: HTTP ${res.status} — ${bodyText.slice(0, 500)}`);
   }
 
   const body = (await res.json()) as FptChatResponse;
   const content = extractChatContent(body);
-  if (body.data?.usage) {
-    recordLlmUsage(body.data.usage.prompt_tokens, body.data.usage.completion_tokens);
-  }
+  const usage = extractUsage(body);
+  if (usage) recordLlmUsage(usage.prompt_tokens, usage.completion_tokens);
   return content;
-}
-
-/** Strips markdown code fences a model sometimes wraps JSON in, despite "respond ONLY with JSON". */
-export function extractJson(raw: string): string {
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return (fenced ? fenced[1] : raw).trim();
 }
 
 /**
- * Pure unwrap of the non-standard {code, message, data} envelope (Implementation Spec §1.1).
- * Exported so selfcheck.ts can verify the parsing logic without a live API call.
+ * Strips markdown code fences a model sometimes wraps JSON in, despite "respond ONLY with JSON",
+ * then falls back to slicing the first "{" to the last "}" so stray prose around the JSON (a
+ * reasoning model occasionally echoes a stray word before/after) doesn't break JSON.parse.
  */
-export function extractChatContent(body: FptChatResponse): string {
-  const content = body.data?.choices?.[0]?.message?.content;
-  if (typeof content !== "string") {
-    throw new Error("gpt-oss-20b response missing data.choices[0].message.content");
+export function extractJson(raw: string): string {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenced ? fenced[1] : raw).trim();
+  try {
+    JSON.parse(candidate);
+    return candidate;
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      return candidate.slice(start, end + 1);
+    }
+    return candidate;
   }
-  return content;
 }
 
 /**
@@ -131,7 +165,7 @@ export async function chatJSON<T>(
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },
     ],
-    { temperature: 0.2, maxTokens: 512, ...options },
+    { temperature: 0.2, maxTokens: 1024, reasoningEffort: "low", ...options },
   );
   const parsed = JSON.parse(extractJson(raw));
   return schema.parse(parsed);
