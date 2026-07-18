@@ -286,6 +286,11 @@ create table kb_chunks (
 );
 create index on kb_chunks using hnsw (embedding vector_cosine_ops);  -- semantic
 create index on kb_chunks using gin (fts);                            -- keyword
+
+alter table kb_chunks enable row level security;  -- no policies granted: default-denies the
+                                                   -- public PostgREST/anon API; the app's server-
+                                                   -- side connection (service_role/direct DATABASE_URL)
+                                                   -- bypasses RLS and is unaffected.
 ```
 
 ---
