@@ -9,7 +9,12 @@ export function getPool(): Pool {
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set");
     }
-    pool = new Pool({ connectionString });
+    // Supabase (and most managed Postgres) require TLS; local Docker Postgres doesn't speak it.
+    const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString);
+    pool = new Pool({
+      connectionString,
+      ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    });
   }
   return pool;
 }

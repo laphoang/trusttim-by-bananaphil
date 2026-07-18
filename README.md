@@ -39,7 +39,7 @@ Browser (Next.js chat widget, VI)
         │    · vietnamese-embedding   (dense retrieval)
         │    · bge-reranker-v2-m3     (rerank)
         │
-        ├─ pgvector / Postgres (our own store) — kb_chunks: content + metadata + dense vector + tsvector
+        ├─ pgvector / Postgres on Supabase (our own store) — kb_chunks: content + metadata + dense vector + tsvector
         │
         └─ Mock booking service — /api/booking
 ```
@@ -94,11 +94,17 @@ artifact for this project.
 
 ```bash
 npm install
-cp .env.example .env   # fill in API_KEY (FPT AI Factory) and DATABASE_URL (pgvector-enabled Postgres)
-npm run db:setup        # creates the kb_chunks table + indexes
+cp .env.example .env   # fill in API_KEY (FPT AI Factory) and DATABASE_URL (Supabase session pooler)
+npm run db:setup        # creates the pgvector extension + kb_chunks table + indexes
 npm run ingest           # embeds hackathon_docs/kb/*.md + rules.json into pgvector
 npm run dev
 ```
+
+Database is **Supabase Postgres** — grab the connection string from Supabase Dashboard >
+Project > Connect > **Session pooler** (port 5432; supports the prepared statements `pg` uses).
+`npm run db:setup` runs `create extension if not exists vector`, so you don't need to enable
+pgvector by hand first. Connections to any non-`localhost` host get TLS automatically
+([`lib/db/client.ts`](lib/db/client.ts)).
 
 Open http://localhost:3000.
 
@@ -151,8 +157,8 @@ TrustTim stores no patient PII, is stateless (history lives only in the client r
 knowledge base is public/hospital-provided content only, and all inference runs on **FPT AI
 Factory** (Vietnam/Japan data centers) rather than a foreign vendor.
 
-**Stack:** Next.js (App Router) + TypeScript, Tailwind, `pg` + pgvector on Postgres, Zod for
-structured-output validation, `gpt-oss-20b` + `vietnamese-embedding` + `bge-reranker-v2-m3` on FPT
+**Stack:** Next.js (App Router) + TypeScript, Tailwind, `pg` + pgvector on **Supabase** Postgres,
+Zod for structured-output validation, `gpt-oss-20b` + `vietnamese-embedding` + `bge-reranker-v2-m3` on FPT
 AI Factory behind one OpenAI-compatible client, Docker for on-prem readiness.
 
 ## Known simplifications (roadmap)
