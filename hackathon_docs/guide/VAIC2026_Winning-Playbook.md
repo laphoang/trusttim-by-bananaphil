@@ -147,7 +147,7 @@ The **official rubric is now known** — full details and per-criterion guidance
 
 ### 5.1 The pipeline and the rubric
 
-Three rounds: **Round 1 — AI Pre-Screening** (all teams, an automated gate you must clear before any human sees your work); **Round 2 — Judge Review** (top 30–40 teams, scored on the rubric below); **Round 3 (LIVE) — Demo Day** (top 10 teams, 4-min pitch + 2-min Q&A, same rubric).
+Three rounds: **Round 1 — AI Pre-Screening** (all teams); **Round 2 — Judge Review** (top 30–40 teams, scored on the rubric below); **Round 3 (LIVE) — Demo Day** (top 10 teams, 4-min pitch + 2-min Q&A, same rubric). **An AI reads your repo at every one of these checkpoints — not just Round 1** — and that analysis assists the human panel, who make the final call. README quality, code structure, deployment readiness, architecture/AI-native legibility, and product completeness all count, straight from the repo (see `VAIC2026_Scoring-Criteria-Guide.md` §2). So keep the repo AI-legible from the first commit, and treat the README + a clean tree + committed eval results as evaluated artifacts, not a code dump.
 
 **The 100-point rubric:**
 
@@ -290,7 +290,7 @@ Demo craft rules:
 | Deliverable | Definition of done | Owner |
 |---|---|---|
 | **Live deployed URL** | Opens on any browser, the golden-path workflow works reliably | He |
-| **Public GitHub repo** | Public, has a clear README (problem, how it works, how AI is used, how to run) | He |
+| **Public GitHub repo** | Public and **AI-legible** (read by an AI evaluator at every checkpoint): README to spec — one-line product statement + live URL, **requirement-coverage table**, architecture section, how AI is used, how to run; plus a clean tree (no dead code/placeholders) and **committed eval results** (`RESULTS.md`). An evaluated artifact, not a code dump. | He |
 | **Demo video (≤5 min)** | Recorded, tells the Section 8 arc, works as a backup for the live demo | Both (she narrates) |
 | **Presentation slides** | ~6–8 slides: problem, user, solution, live-demo pointer, AI role, impact/business | She leads, he supports |
 | **Project description** | Crisp written summary; states the AI-native core explicitly | She |

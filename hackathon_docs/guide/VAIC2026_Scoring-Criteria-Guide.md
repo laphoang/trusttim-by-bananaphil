@@ -6,31 +6,48 @@
 
 ## 1. The 3-round evaluation pipeline
 
-Every submission goes through three rounds. Understanding this pipeline matters because **each round has a different judge (or non-judge) and a different bar to clear** — optimizing only for the final round's rubric while ignoring Round 1 can get you eliminated before a human ever sees your work.
+Every submission goes through three rounds. Understanding this pipeline matters because **each round has a different bar to clear** — and because **an AI reads your repo at every one of them**.
 
 | Round | Who evaluates | Who's still in | What happens |
 |---|---|---|---|
-| **Round 1 — AI Pre-Screening** | An automated AI screener | All teams | First-pass automatic screening of every submission. |
-| **Round 2 — Judge Review** | Expert human judges | Top 30–40 teams | Judges evaluate the qualifying projects in depth against the 6-criteria rubric. |
-| **Round 3 (LIVE) — Demo Day** | Judges, live | Top 10 teams | Live pitch: **4 minutes presentation + 2 minutes Q&A** in front of judges. |
+| **Round 1 — AI Pre-Screening** | An automated AI screener | All teams | First-pass automatic screening of every submission's repo. |
+| **Round 2 — Judge Review** | Expert human judges, **AI-assisted** | Top 30–40 teams | Judges evaluate the qualifying projects in depth against the 6-criteria rubric, with AI analysis of the repo as an input. |
+| **Round 3 (LIVE) — Demo Day** | Judges live, **AI-assisted** | Top 10 teams | Live pitch: **4 minutes presentation + 2 minutes Q&A** in front of judges. |
 
-**The 100-point, 6-criteria rubric (below) is what Round 2 and Round 3 judges use.** Round 1 doesn't score you on these 100 points directly — it's a **gate**. Treat it as pass/fail: if an automated screener can't tell that your submission satisfies the brief, you never reach the humans who would otherwise reward your doctor's insight. See Section 2.
+**Two distinct evaluators run in parallel — plan for both.**
+
+1. **An AI system analyzes your repo at all three checkpoints, not just Round 1.** It reads the actual repository — source code quality/structure, deployment readiness, architecture and degree of AI-native design, README/technical docs, and overall product completeness/maturity — and that analysis is a **persistent input the human panel sees at every round**, not a one-time gate you clear and forget. Keep the repo AI-legible from the first commit to the last. See **Section 2**.
+2. **The expert human panel makes the final decision** against the **100-point, 6-criteria rubric** (Section 3) in Rounds 2 and 3. The AI assists; the humans score and decide.
+
+The practical consequence: the AI-analyzed factors are essentially the **AI-verifiable subset of the human rubric** (code, deployment, architecture, docs, completeness are all checkable straight from the repo). Make those bulletproof and self-evident in the repo so both readers confirm them cheaply — then spend your scarce human-persuasion effort on the criteria only a person can judge (business credibility, the clinical-safety story, UX taste, the live pitch).
 
 ---
 
-## 2. Round 1 — passing the AI pre-screen (easy to overlook, cheap to secure)
+## 2. Passing the AI-assisted evaluation — your repo is read by an AI at every checkpoint
 
-An AI reads every submission before any human does. It is almost certainly pattern-matching your **project description and README** against the problem statement's explicit requirements. This means:
+An AI system reads your **actual repository** — not just the submission form — and its analysis is an input to the human panel at all three checkpoints (Section 1). It analyzes **five factors**, each of which it can verify directly from the repo. Treat each as a cheap, high-confidence signal to secure. And a governing rule for all five: **don't bury the evidence in clever framing** — be almost boringly literal and put the proof where an AI reader will actually find it (the README and the repo itself), not only in a pitch it never sees.
 
-- **State your requirement coverage explicitly and plainly.** Don't rely on the screener to infer that you handle something — say it in plain language, ideally in the same terms the brief uses. For this challenge, that means explicitly naming:
-  - Knowledge-based FAQ answering (booking, procedures, BHYT, pricing, schedules)
-  - Hospital system/API integration (or the honest scope of what you integrated with)
-  - Conversational experience (text; note ASR/TTS if attempted)
-  - Trustworthy, grounded responses (no hallucination, explicit "I don't know" behavior)
-  - Emergency detection & escalation
-  - Deployment readiness (privacy/security posture)
-- **Don't bury this in clever framing.** Save the storytelling for the human-judged rounds (Section 8 of the Playbook). In the written project description, be almost boringly literal about which requirement each feature satisfies.
-- **A working live URL and a clean README are cheap, high-confidence signals** an automated screener can verify — prioritize having both over having more features.
+### 2.1 The five AI-analyzed factors (and how to make each self-evident in the repo)
+
+1. **Source code quality & structure.** Clean, legible module boundaries (mirror the layout in the Architecture guide §7 — `lib/rag`, `lib/emergency`, `lib/scope`, etc.), typed code, consistent naming, small focused files, and **no dead or commented-out code**. Prefer a **meaningful commit history** (incremental, described) over a single "final" dump — the AI can read the git log, and a real history reads as a real build.
+
+2. **Deployment status & readiness.** A **working live URL surfaced at the top of the README**, a `Dockerfile`, env-swappable model config, and a "how to run" that actually works if followed. Carry the privacy/readiness posture (Architecture guide §10) in the README so the AI can see it — inference in a Vietnamese sovereign cloud, stateless, no PII stored, env-swap to dedicated/on-prem capacity.
+
+3. **Architecture & degree of AI-native design.** An **in-repo architecture write-up + a diagram** that make the AI-native core unmistakable: RAG grounding, the two guardrails (symptom/emergency + intent/scope), the retrieval pipeline. Include one plain sentence — *"the product doesn't work without AI because ___"* — so neither reader has to infer it. (This is the same evidence criterion 3.2 rewards; write it once, both readers use it.)
+
+4. **README & technical documentation.** The **single highest-leverage artifact for an AI reader** — it's the first and most complete thing it parses. Follow the concrete README spec in the Architecture guide §7, and include a **requirement-coverage table** mapping each brief requirement → where it's implemented in the repo:
+   - Knowledge-based FAQ answering (booking, procedures, BHYT, pricing, schedules)
+   - Hospital system/API integration (or the honest scope of what you integrated with)
+   - Conversational experience (text; note ASR/TTS if attempted)
+   - Trustworthy, grounded responses (no hallucination, explicit "I don't know" behavior)
+   - Emergency detection & escalation
+   - Deployment readiness (privacy/security posture)
+
+5. **Overall product completeness & maturity.** The golden path works end-to-end; the **eval results are committed in the repo** (e.g. `RESULTS.md` / `data/eval/`), not just shown on a slide the AI never sees; there is **no `TODO` / placeholder / "coming soon"** left in the tree; all six response types (Architecture guide §6.3) are handled; the eval/golden sets are present. Maturity is inferred from what's actually in the repo — so put it there.
+
+### 2.2 The strategic point
+
+These five factors are the **AI-verifiable subset of the 100-point human rubric** — the parts a reader can confirm straight from the repository. They are cheap to secure and, because the same AI analysis follows you into Rounds 2 and 3, they keep paying off past the initial gate. Make them **bulletproof and self-evident**, then stop: don't gold-plate what the AI already can't miss at the expense of the criteria only a human can judge — **business credibility, the clinical-safety story, UX taste, and the live pitch** (Sections 3.3–3.6, and Playbook Section 8). The winning repo satisfies the AI reader completely *and* frees your human-persuasion time for where it actually moves the score.
 
 ---
 

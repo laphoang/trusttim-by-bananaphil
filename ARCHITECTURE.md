@@ -50,9 +50,9 @@ Order matters — safety checks run before any retrieval or generation:
    support case, skip everything else. `normal` → fixed "can't examine symptoms, please book"
    redirect + booking CTA, skip everything else (never answered medically). **Fails safe**: a
    classifier error also shows the safety notice, never silently continues.
-3. **Intent & scope guardrail.** Multi-label classifier over four intents —
-   `booking | bhyt_pricing | hospital_info | doctor_schedule` — plus in-scope check. No matched
-   intent → fixed default response, stop (no retrieval, no generation).
+3. **Intent & scope guardrail.** Multi-label classifier over five intents —
+   `booking | bhyt_pricing | procedures | hospital_info | doctor_schedule` — plus in-scope check.
+   No matched intent → fixed default response, stop (no retrieval, no generation).
 4. **Retrieve** (only if an informational intent is present). Hybrid: dense (embed + pgvector) ⊕
    keyword/FTS + structured rules, fused via RRF, then reranked (`bge-reranker-v2-m3`) to a small
    top-k. Degrades to keyword-only if the embed/rerank endpoints are unavailable.
@@ -75,12 +75,12 @@ Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 |---|---|
 | **Frontend** | Next.js/React chat widget — streamed answers, citation chips, distinct "I don't know", EMERGENCY, and normal-symptom-redirect UI states. |
 | **Orchestration** | `/api/chat` route handler — runs the pipeline above. |
-| **Hybrid retrieval + KB** | Dense (FPT `vietnamese-embedding`) ⊕ keyword/FTS + structured rules → RRF fuse → rerank (FPT `bge-reranker-v2-m3`), scoped to three informational intents (`bhyt_pricing`/`hospital_info`/`doctor_schedule`). |
+| **Hybrid retrieval + KB** | Dense (FPT `vietnamese-embedding`) ⊕ keyword/FTS + structured rules → RRF fuse → rerank (FPT `bge-reranker-v2-m3`), scoped to four informational intents (`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`). |
 | **FPT AI Factory models** | `gpt-oss-20b` (generation + both classifiers), `vietnamese-embedding`, `bge-reranker-v2-m3` — one OpenAI-compatible client, VN/JP data centers. |
 | **pgvector / Postgres** | Single `kb_chunks` table: content, metadata, dense vector, `tsvector` — hybrid retrieval is one SQL query. |
 | **Mock booking service** | `/api/booking` — appointment-creation link + simulated schedule data, handoff to real hospital channels. |
 | **Symptom & emergency guardrail** | Own module — sole severity detector (`none`/`normal`/`serious`), fail-safe on error, raises a mocked support case on `serious`, redirects to booking on `normal`. |
-| **Intent & scope guardrail** | Own module — multi-label classifier over the four intents; out-of-scope → fixed default response. |
+| **Intent & scope guardrail** | Own module — multi-label classifier over the five intents; out-of-scope → fixed default response. |
 | **Observability** | Structured logging (query, retrieval sources, severity/intent verdicts, tokens, latency) — feeds the demo and the required AI-collaboration log. |
 
 Rationale/tradeoffs for each tool: [guide §4](hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md#4-tech-stack--tool--why--benefits--drawbacks).
@@ -102,9 +102,9 @@ Rationale/tradeoffs for each tool: [guide §4](hackathon_docs/guide/TrustTim_Arc
 ## Retrieval design in brief
 
 The KB is human-curated, not auto-chunked: built from real knowledge-demand (what patients
-actually ask), manually chunked with topic/keyword metadata over three informational topics
-(`bhyt_pricing`, `hospital_info` — procedures fold in here, `doctor_schedule`), and BHYT/procedure
-prose converted into explicit structured rules so even a small model reasons over them reliably.
+actually ask), manually chunked with topic/keyword metadata over four informational topics
+(`bhyt_pricing`, `procedures`, `hospital_info`, `doctor_schedule`), and BHYT/procedure prose
+converted into explicit structured rules so even a small model reasons over them reliably.
 Query time: normalize → intent route (soft, multi-label) → dense + keyword arms in parallel → RRF
 fuse → rerank → grounding gate. Neither retrieval arm alone is sufficient on a large Vietnamese
 KB — semantic catches paraphrases, keyword/rules catch exact terms and abbreviations. Booking is

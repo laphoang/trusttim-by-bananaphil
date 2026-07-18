@@ -53,11 +53,12 @@ Six design principles govern every decision below:
         │                     safe escalation + raise support case (skip RAG)        │
         │   3. ┌─ INTENT & SCOPE GUARDRAIL (after guardrail 1, before RAG) ┐          │
         │      │  in-scope route? else gpt-oss-20b intent classifier        │──none of│
-        │      │  {in_scope, intents[]: booking|bhyt_pricing|hospital_info| │  the 4──▶│ default
-        │      │             doctor_schedule}                               │  intents │ response
+        │      │  {in_scope, intents[]: booking|bhyt_pricing|procedures|    │  the 5──▶│ default
+        │      │             hospital_info|doctor_schedule}                 │  intents │ response
         │      └──────────────────────────────────────────────────────────┘  (skip RAG)
         │   4. RETRIEVE — only if an informational intent is present (bhyt_pricing/  │
-        │      hospital_info/doctor_schedule), hybrid then rerank, multi-intent aware:│
+        │      procedures/hospital_info/doctor_schedule), hybrid then rerank, multi- │
+        │      intent aware:                                                        │
         │      filter to matched informational intents (union, or none — soft signal);│
         │      parallel: • DENSE: embed query (FPT vietnamese-embedding) → pgvector  │
         │        • KEYWORD: VI synonym/abbrev dictionary + FTS/rule ranking          │
@@ -118,12 +119,12 @@ Order matters. **The symptom & emergency guardrail runs before anything else** �
    - **`none`** (not a symptom question at all — booking, BHYT, hospital info, schedules, off-topic) → continue to step 3.
    - **Fail-safe:** if the classifier call errors or times out, **err toward showing the safety notice** (emergency/hotline guidance) rather than silently proceeding — safety must never depend on a successful model call. (See the resilience note in §11.)
 3. **Intent & scope guardrail (after guardrail 1, before retrieval), deterministic-first.** Only *hospital inquiries* get answered; anything else is filtered here so we never spend retrieval/generation on off-topic or harmful queries.
-   - **Multi-label over four in-scope intents:** the classifier emits `{ in_scope: boolean, intents: string[] }` where each entry is one of **`booking | bhyt_pricing | hospital_info | doctor_schedule`** — a query can carry **several** at once (e.g. *"is there a heart check-up combo?"* → `bhyt_pricing`) **and** a booking action (*"I want to book"* → `booking` also present). This is deliberate: a single label would let one intent mask another (see §6.2). **In-scope if the array is non-empty** (out-of-scope only if it's empty).
-   - **Deterministic pass-through:** if the query clearly matches one or more of the four intents via the router + VI dictionary/keywords (§5.6), it's in-scope — proceed, no LLM call; booking keywords ("đặt lịch", "hẹn khám", "đặt hẹn", book/appointment) add `booking` here too. `gpt-oss-20b` (low reasoning) handles only the ambiguous / no-match case.
+   - **Multi-label over five in-scope intents:** the classifier emits `{ in_scope: boolean, intents: string[] }` where each entry is one of **`booking | bhyt_pricing | procedures | hospital_info | doctor_schedule`** — a query can carry **several** at once (e.g. *"is there a heart check-up combo?"* → `bhyt_pricing`) **and** a booking action (*"I want to book"* → `booking` also present). This is deliberate: a single label would let one intent mask another (see §6.2). **In-scope if the array is non-empty** (out-of-scope only if it's empty).
+   - **Deterministic pass-through:** if the query clearly matches one or more of the five intents via the router + VI dictionary/keywords (§5.6), it's in-scope — proceed, no LLM call; booking keywords ("đặt lịch", "hẹn khám", "đặt hẹn", book/appointment) add `booking` here too. `gpt-oss-20b` (low reasoning) handles only the ambiguous / no-match case.
    - **Out of scope → return the fixed default response and stop** (no retrieval, no free generation): a friendly Vietnamese message that TrustTim only assists with Hanoi Heart Hospital inquiries, listing what it *can* help with and pointing to the hotline (see §6). Harmful/abusive off-topic queries are declined the same way.
    - **Precedence:** this runs *after* the symptom & emergency guardrail so a distress or symptom message is always caught first, never mis-filtered as "off-topic." **Bias toward answering** when unsure — let borderline questions through to retrieval (the grounding gate is the backstop) rather than wrongly turning away a real patient.
 4. **Retrieve — only if an informational intent is present, hybrid then rerank, multi-intent aware (Case study — "retrieval is not the same as understanding"):** skipped entirely if `intents[]` contains only `booking` (see step 7) or is empty.
-   - **Intent is a *soft* signal, not a hard filter.** Scope the search to the **union of the matched informational intents** (`bhyt_pricing | hospital_info | doctor_schedule` present in `intents[]`) — `where topic in (…)` — or don't filter at all — never a single-intent `where topic = X`, which would drop a second intent of a compound query. Widen the fused candidate pool so every intent's chunks can surface.
+   - **Intent is a *soft* signal, not a hard filter.** Scope the search to the **union of the matched informational intents** (`bhyt_pricing | procedures | hospital_info | doctor_schedule` present in `intents[]`) — `where topic in (…)` — or don't filter at all — never a single-intent `where topic = X`, which would drop a second intent of a compound query. Widen the fused candidate pool so every intent's chunks can surface.
    - **Two arms, in parallel:** a **dense** arm — embed the normalized query via **FPT's `vietnamese-embedding` endpoint** and do a vector search in **pgvector** — and a **keyword** arm — dictionary-expanded full-text / rule ranking. Any matching **structured-logic rules** (BHYT/procedures) are pulled deterministically here too.
    - **Fuse + rerank (this resolves multi-intent):** combine the arms with **Reciprocal Rank Fusion** (recall-oriented), then **FPT's `bge-reranker-v2-m3` endpoint** scores every candidate against the **full query** and reorders — so for *"combo? + book"* it pulls the pricing chunk **and** any hospital-info chunk to the **top-k**, regardless of intent. Cost is bounded by the candidate count (~20–30), not KB size.
    - **Resilience:** if the embedding or rerank endpoint errors/times out, **degrade to keyword-only retrieval** (dictionary + FTS + structured rules) rather than failing the turn — the keyword arm always works locally.
@@ -167,7 +168,7 @@ Every KB chunk carries metadata so answers can cite and caveat honestly:
 ```json
 {
   "id": "bhyt-transfer-letter",
-  "topic": "bhyt_pricing",               // bhyt_pricing | hospital_info | doctor_schedule (procedures fold into hospital_info; booking is an action, not a KB topic)
+  "topic": "bhyt_pricing",               // bhyt_pricing | procedures | hospital_info | doctor_schedule (booking is an action, not a KB topic)
   "title": "Giấy chuyển tuyến BHYT",
   "content": "…",
   "keywords": ["chuyển tuyến", "giấy chuyển", "trái tuyến", "…"],  // for the keyword arm (FTS/dictionary match)
@@ -196,7 +197,7 @@ Once the rules are explicit, even the cheap model reasons reliably — "the solu
 Some answers patients want aren't stored explicitly anywhere. The case study had to *build* a subject-combination→eligible-major mapping. TrustTim's analogues (build these deliberately, don't expect to extract them): a **need/intent → correct department or clinic** map, and an **insurance-status (has BHYT + referral?) → applicable procedure & pricing path** map. This is engineered knowledge, doctor-authored.
 
 ### 5.6 Query normalization + domain dictionary
-Patients use abbreviations, slang, and context-dependent follow-ups. Maintain a **Vietnamese synonym/abbreviation dictionary** (e.g., BHYT ↔ bảo hiểm y tế; colloquial symptom/booking terms) used to normalize the query *before* intent matching and both retrieval arms. The router/dictionary can match **multiple** of the four intents (`booking | bhyt_pricing | hospital_info | doctor_schedule`) for one query (multi-label — see §5.7 and §6.2), not just one; that's how a compound question keeps all its intents. Keep **minimal conversation memory** — carry only the context needed for follow-ups, not the whole transcript ("relevant context > large context"); this is both an accuracy and a cost decision.
+Patients use abbreviations, slang, and context-dependent follow-ups. Maintain a **Vietnamese synonym/abbreviation dictionary** (e.g., BHYT ↔ bảo hiểm y tế; colloquial symptom/booking terms) used to normalize the query *before* intent matching and both retrieval arms. The router/dictionary can match **multiple** of the five intents (`booking | bhyt_pricing | procedures | hospital_info | doctor_schedule`) for one query (multi-label — see §5.7 and §6.2), not just one; that's how a compound question keeps all its intents. Keep **minimal conversation memory** — carry only the context needed for follow-ups, not the whole transcript ("relevant context > large context"); this is both an accuracy and a cost decision.
 
 ### 5.7 Hybrid retrieval (semantic + keyword → fuse → rerank)
 The KB is large, so retrieval combines a **semantic** arm (catches paraphrases and synonyms the keyword layer would miss) with the **keyword/rule** arm from §5.1–§5.6 (exact on abbreviations, rules, and rare terms a dense model may blur). Neither alone is enough on a large Vietnamese KB; together, fused and reranked, they are.
@@ -211,7 +212,7 @@ The KB is large, so retrieval combines a **semantic** arm (catches paraphrases a
 create extension if not exists vector;
 create table kb_chunks (
   id           text primary key,
-  topic        text not null,              -- bhyt_pricing | hospital_info | doctor_schedule (a soft filter, not exclusive; procedures fold into hospital_info)
+  topic        text not null,              -- bhyt_pricing | procedures | hospital_info | doctor_schedule (a soft filter, not exclusive)
   title        text,
   content      text not null,              -- the chunk text (also what we embed)
   keywords     text[],                     -- for the keyword arm
@@ -225,14 +226,14 @@ create index on kb_chunks using gin (fts);                            -- keyword
 ```
 
 **Retrieval flow (query time):**
-1. **Normalize + soft intent filter** (§5.6): expand abbreviations/slang, then scope to the **union of matched informational intents** (`bhyt_pricing`/`hospital_info`/`doctor_schedule`) — `where topic in (…matched…)`, or **no topic filter at all** — never a single-intent `where topic = X`. Topic is a soft signal that narrows the pool, not an exclusion that can drop a second intent. (This step only runs if an informational intent is present — a booking-only message skips retrieval, §3 step 4/7.)
+1. **Normalize + soft intent filter** (§5.6): expand abbreviations/slang, then scope to the **union of matched informational intents** (`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`) — `where topic in (…matched…)`, or **no topic filter at all** — never a single-intent `where topic = X`. Topic is a soft signal that narrows the pool, not an exclusion that can drop a second intent. (This step only runs if an informational intent is present — a booking-only message skips retrieval, §3 step 4/7.)
 2. **Dense arm:** embed the normalized query via FPT `vietnamese-embedding` → `order by embedding <=> $queryVec limit N` in pgvector.
 3. **Keyword arm:** dictionary-expanded `fts @@ ...` / keyword-rank query → top N; plus deterministic **structured-rule** matches (BHYT/procedures).
 4. **Fuse:** merge the two ranked lists with **Reciprocal Rank Fusion** (recall-oriented; no tuning of incomparable score scales needed).
 5. **Rerank (required):** FPT `bge-reranker-v2-m3` scores the fused candidates against the query; keep the **top-k** (e.g. 3–5) — this is the precision step that keeps the generator grounded. (If embed or rerank is unavailable, degrade to keyword-only.)
 6. **Grounding gate:** if nothing clears a relevance threshold after rerank, return **"I don't know" + official channels** — the anti-hallucination mechanism. For a multi-part question, answer the parts that *are* grounded and point to official channels for the rest — don't discard a whole answer because one sub-intent found nothing.
 
-**Multi-intent queries (Layer 1).** A single message often spans intents — *"Is there a general heart check-up combo? I want to book?"* touches `bhyt_pricing` **and** `booking`. Two design choices keep both alive: (1) intent classification is **multi-label** over the four intents (§6.2), so retrieval scopes to the *union* of matched informational intents rather than one; and (2) **the reranker resolves the intents** — `bge-reranker-v2-m3` scores every fused candidate against the *whole* query, so the top-k naturally contains the best chunk for *each* informational intent. The key principle: **decouple intent detection from retrieval filtering** — never let a single topic label hard-exclude a relevant chunk. (Booking is handled as an *action*, not a retrieval topic — see §3 step 7 and §6.2. A heavier **query-decomposition** option — split into sub-queries, retrieve per sub-query, synthesize — is left as an eval-gated future step if the reranker approach ever misses on compound queries.)
+**Multi-intent queries (Layer 1).** A single message often spans intents — *"Is there a general heart check-up combo? I want to book?"* touches `bhyt_pricing` **and** `booking`. Two design choices keep both alive: (1) intent classification is **multi-label** over the five intents (§6.2), so retrieval scopes to the *union* of matched informational intents rather than one; and (2) **the reranker resolves the intents** — `bge-reranker-v2-m3` scores every fused candidate against the *whole* query, so the top-k naturally contains the best chunk for *each* informational intent. The key principle: **decouple intent detection from retrieval filtering** — never let a single topic label hard-exclude a relevant chunk. (Booking is handled as an *action*, not a retrieval topic — see §3 step 7 and §6.2. A heavier **query-decomposition** option — split into sub-queries, retrieve per sub-query, synthesize — is left as an eval-gated future step if the reranker approach ever misses on compound queries.)
 
 ### 5.8 Generation
 - **Citations:** return the titles/URLs of the chunks/rules actually used; render them under the answer.
@@ -260,7 +261,7 @@ This is the one module where "the LLM is a hardworking junior analyst who is occ
 
 ### 6.2 Intent & scope guardrail (taxonomy → action)
 
-Runs at §3 step 3, **after** the symptom & emergency guardrail and **before** retrieval. Its job: recognize which of TrustTim's **four supported intents** a hospital inquiry maps to (a query can carry more than one), and filter out everything else with a fixed default response.
+Runs at §3 step 3, **after** the symptom & emergency guardrail and **before** retrieval. Its job: recognize which of TrustTim's **five supported intents** a hospital inquiry maps to (a query can carry more than one), and filter out everything else with a fixed default response.
 
 **The taxonomy — every category TrustTim classifies, and what it does:**
 
@@ -268,15 +269,16 @@ Runs at §3 step 3, **after** the symptom & emergency guardrail and **before** r
 |---|---|---|
 | 1 | **Appointment booking** | Return a response with the **appointment-creation link** (booking CTA) — an action, not a KB query. |
 | 2 | **BHYT coverage & examination/treatment service price** (`bhyt_pricing`) | Query the KB, return a grounded, cited result. |
-| 3 | **Hospital information** (`hospital_info`) — incl. general info and examination/treatment **procedures** | Query the KB, return a grounded, cited result. |
-| 4 | **Doctor schedule** (`doctor_schedule`) | Query the KB, return a grounded, cited result (likely `is_synthetic` — see §5.7/§11). |
-| 5 | **Normal symptom** | Handled by **guardrail 1** (§6.1), not here — fixed "can't examine, please book" redirect. |
-| 6 | **Serious symptom** | Handled by **guardrail 1** (§6.1), not here — emergency escalation. |
+| 3 | **Examination/treatment procedures** (`procedures`) — how outpatient reception, exams, and treatment actually work; grounded in the hospital's own SOP doc | Query the KB, return a grounded, cited result. |
+| 4 | **Hospital information** (`hospital_info`) — general info (departments, location, contact, policies) | Query the KB, return a grounded, cited result. |
+| 5 | **Doctor schedule** (`doctor_schedule`) | Query the KB, return a grounded, cited result (likely `is_synthetic` — see §5.7/§11). |
+| 6 | **Normal symptom** | Handled by **guardrail 1** (§6.1), not here — fixed "can't examine, please book" redirect. |
+| 7 | **Serious symptom** | Handled by **guardrail 1** (§6.1), not here — emergency escalation. |
 | — | **Anything else (out of scope)** | Fixed default response (below); includes harmful/abusive queries. |
 
-- **Deterministic-first:** the intent router + VI dictionary/keywords (§5.6) pass clearly-matched queries through for free (no LLM call), and can match **several** of the four intents at once.
-- **Classifier for the rest — multi-label:** `gpt-oss-20b` with **Zod-validated structured output** `{ in_scope: boolean, intents: string[] }` (each entry one of `booking | bhyt_pricing | hospital_info | doctor_schedule`), low reasoning effort. Multi-label is deliberate: a single label would let `booking` "use up" the slot and mask an informational intent — the exact failure that single-topic routing causes on *"is there a check-up combo? I want to book?"* The three informational intents drive *what to retrieve* (union, §5.7); `booking` drives the *booking action* (§3 step 7) — both can be present together.
-- **In-scope if the array is non-empty** (out-of-scope only if the query matches none of the four intents).
+- **Deterministic-first:** the intent router + VI dictionary/keywords (§5.6) pass clearly-matched queries through for free (no LLM call), and can match **several** of the five intents at once.
+- **Classifier for the rest — multi-label:** `gpt-oss-20b` with **Zod-validated structured output** `{ in_scope: boolean, intents: string[] }` (each entry one of `booking | bhyt_pricing | procedures | hospital_info | doctor_schedule`), low reasoning effort. Multi-label is deliberate: a single label would let `booking` "use up" the slot and mask an informational intent — the exact failure that single-topic routing causes on *"is there a check-up combo? I want to book?"* The four informational intents drive *what to retrieve* (union, §5.7); `booking` drives the *booking action* (§3 step 7) — both can be present together.
+- **In-scope if the array is non-empty** (out-of-scope only if the query matches none of the five intents).
 - **Default response (out-of-scope), fixed and doctor/team-authored** — sketch:
   > *"Xin lỗi, TrustTim chỉ hỗ trợ các câu hỏi liên quan đến Bệnh viện Tim Hà Nội — như đặt lịch khám, bảo hiểm y tế (BHYT), và quy trình khám chữa bệnh. Với các vấn đề khác, vui lòng liên hệ tổng đài 1900 1082."*
   ("Sorry, TrustTim only helps with Hanoi Heart Hospital inquiries — booking, BHYT insurance, and examination/treatment procedures. For anything else, please call 1900 1082.")
@@ -292,7 +294,7 @@ Six distinct response shapes come out of the pipeline (useful to enumerate for t
 2. **Normal-symptom redirect** (severity `normal`) — fixed "can't examine, please book" message + booking CTA, no KB.
 3. **Out-of-scope default response** (no in-scope intent matched) — fixed decline + hotline.
 4. **Grounding-gate "I don't know"** (in-scope but nothing confidently retrieved) — official channels.
-5. **Grounded informational answer** (`bhyt_pricing` / `hospital_info` / `doctor_schedule`) — cited, from retrieval + generation.
+5. **Grounded informational answer** (`bhyt_pricing` / `procedures` / `hospital_info` / `doctor_schedule`) — cited, from retrieval + generation.
 6. **Booking link/CTA** (`booking` present) — can appear **alone** or **alongside** #5 for a compound query.
 
 ---
@@ -321,7 +323,7 @@ trusttim/
 │  │  ├─ responses.ts              # hard-coded copy: serious → safe escalation; normal → "can't examine, please book" redirect (doctor-owned)
 │  │  └─ case.ts                   # raise a (mocked) emergency support case on `serious`: log + simulate notify CSKH
 │  ├─ scope/
-│  │  ├─ classify.ts               # gpt-oss-20b intent classifier: {in_scope, intents[]: booking|bhyt_pricing|hospital_info|doctor_schedule} (Zod)
+│  │  ├─ classify.ts               # gpt-oss-20b intent classifier: {in_scope, intents[]: booking|bhyt_pricing|procedures|hospital_info|doctor_schedule} (Zod)
 │  │  └─ responses.ts              # fixed out-of-scope default response (VI, team-authored)
 │  └─ booking/mock-data.ts         # seed doctors / specialties / slots
 ├─ data/
@@ -334,14 +336,31 @@ trusttim/
 │     ├─ scope-cases.json          # in-scope / out-of-scope / borderline labelled queries
 │     └─ faq-cases.json            # question → expected source(s)
 ├─ Dockerfile                      # on-prem / FPT readiness
-└─ README.md                       # problem, architecture, AI usage, how to run
+├─ ARCHITECTURE.md                 # in-repo architecture map + diagram (AI-native core made explicit)
+├─ RESULTS.md                      # committed eval numbers (recall, precision@k, cost/latency)
+└─ README.md                       # the spec below — the first & most complete thing an AI reader parses
 ```
+
+**README spec — write for two readers (the human judge *and* the AI evaluator that reads the repo at every checkpoint; see Scoring-Criteria-Guide §2).** The README is the single highest-leverage artifact for the AI screener, so make requirement coverage and the AI-native core self-evident there rather than only in the pitch. It should contain, in order:
+
+1. **One-line product statement + the live URL** (working, at the very top).
+2. **Problem + a requirement-coverage table** — each brief requirement (FAQ answering; booking/integration; conversational experience; grounded/no-hallucination + "I don't know"; emergency detection & escalation; deployment readiness) → where in the repo it's implemented. Be boringly literal.
+3. **Architecture** — a diagram + the AI-native core + the pipeline (link/inline from `ARCHITECTURE.md`), with the plain sentence *"the product doesn't work without AI because ___."*
+4. **How AI is used** — both *in-product* (RAG grounding, the two guardrails, generation) and *to-build* (the AI-collaboration log).
+5. **How to run + deploy** — local steps that actually work if followed, plus `Dockerfile` / env-swap notes.
+6. **Safety & grounding behavior** — the emergency escalation, the "I don't know" gate, citations.
+7. **Eval-results summary** — headline numbers, linking to `RESULTS.md` (committed, not slide-only).
+8. **Privacy posture + tech stack** — the §10 readiness narrative in brief.
+
+Keep `ARCHITECTURE.md` a trimmed product-repo copy of this guide's map (§2 + §3), and `RESULTS.md` the committed eval output from §9 — both exist so the AI reader finds the completeness/architecture evidence *in the repo*, not only in the submission form.
 
 ---
 
 ## 8. Step-by-step build plan (mapped to the AI Project Guidebook phases + the 48h timeline)
 
 Each phase names concrete tasks, the **owner** (🛠️ = builder / 🩺 = doctor / 👥 = both), and a definition-of-done. Timeline anchors reference the Playbook's 48h schedule.
+
+**Cross-cutting principle — write the repo for two readers.** Every submission is judged by both a human panel *and* an AI evaluator that reads the actual repository at **all three** checkpoints (Scoring-Criteria-Guide §1–§2). So every phase should leave behind an artifact the AI can verify from the repo alone: the **README** (kept current, not deferred to Sunday), the **code structure** (clean modules, no dead code, meaningful commits), the **committed eval results** (`RESULTS.md`), and the **live URL**. The five AI-analyzed factors — code quality/structure, deployment readiness, architecture/AI-native design, README/docs, completeness/maturity — are the AI-verifiable subset of the rubric; the DoDs below fold them in as you go rather than as a Sunday scramble.
 
 ### P0 — Pre-event: Frame, Choose, Select (Guidebook §1–§3)
 *Before Jul 17 (allowed prep — must NOT pre-build the product).*
@@ -354,13 +373,14 @@ Each phase names concrete tasks, the **owner** (🛠️ = builder / 🩺 = docto
 
 ### P1 — Skeleton + deploy (Fri, Playbook 14:00–18:00)
 - 🛠️ Scaffold the Next.js app; a minimal chat UI calling a stub `/api/chat`; **deploy the empty shell to Vercel today** and keep the URL green from here on.
-- **DoD:** a live URL renders a chat box and echoes a stubbed reply.
+- 🛠️ **Commit a README from day one** — the one-line product statement + the live URL at the top, with the §7 spec's headings stubbed in (fill as you build). The AI evaluator reads whatever repo state exists at each checkpoint, so an empty/`create-next-app` default README is a wasted signal.
+- **DoD:** a live URL renders a chat box and echoes a stubbed reply; the repo's README already states what the product is and links the live URL.
 
 ### P2 — Prepare Data + golden eval set (Guidebook §4, Case study method) (Fri afternoon/evening)
 - 🩺 **Knowledge-demand analysis first (Case study §5.1):** list the real top patient questions; decide what to *keep* and explicitly *cut* the low-value content (history/mission/org/awards).
-- 🩺 **Manually chunk** the KB for the three informational topics (**`bhyt_pricing` / `hospital_info` (incl. procedures) / `doctor_schedule`**); tag metadata + `keywords` + `is_synthetic` (`doctor_schedule` content is likely synthesized, per the website inventory — flag it honestly).
+- 🩺 **Manually chunk** the KB for the four informational topics (**`bhyt_pricing` / `procedures` / `hospital_info` / `doctor_schedule`**); tag metadata + `keywords` + `is_synthetic` (`doctor_schedule` content is likely synthesized, per the website inventory — flag it honestly). `procedures` chunks straight from the hospital's own SOP doc (`PROCEDURE_FOR_PATIENT_RECEPTION_OUTPATIENT_EXAMINATION_TREATMENT.md`) — the most directly-groundable topic.
 - 🩺 **Convert prose → structured logic** for BHYT/procedure rules (decision tables/JSON), and **build the engineered artifacts** (need→department, insurance-status→pricing-path maps) + the **VI synonym/abbreviation dictionary**.
-- 🩺 **Build the golden eval sets *before* the pipeline exists** (§4/§6): `emergency-cases.json` (~20–30 labelled cases spanning all three severities — `none` / `normal` symptom-mentions / `serious` — incl. the tricky normal-vs-serious boundary), `scope-cases.json` (in-scope across the four intents / out-of-scope / borderline queries — incl. off-topic and harmful examples), and `faq-cases.json` (question → expected source, covering all three informational intents incl. `doctor_schedule`). **Include several compound multi-intent queries** (e.g. `bhyt_pricing` + `booking`) with the expected `intents[]` labelled, for the §9(a3) eval.
+- 🩺 **Build the golden eval sets *before* the pipeline exists** (§4/§6): `emergency-cases.json` (~20–30 labelled cases spanning all three severities — `none` / `normal` symptom-mentions / `serious` — incl. the tricky normal-vs-serious boundary), `scope-cases.json` (in-scope across the five intents / out-of-scope / borderline queries — incl. off-topic and harmful examples), and `faq-cases.json` (question → expected source, covering all four informational intents incl. `doctor_schedule`). **Include several compound multi-intent queries** (e.g. `bhyt_pricing` + `booking`) with the expected `intents[]` labelled, for the §9(a3) eval.
 - 🛠️ Write `lib/rag/ingest.ts`: curated chunks → **embed via FPT `vietnamese-embedding` → upsert into pgvector** (with metadata + generated `fts`), load structured rules + dictionary. Run it to populate the DB.
 - **DoD:** curated KB embedded and loaded into pgvector (dense + `fts` both queryable); structured rules + dictionary committed; eval sets exist and are held out.
 
@@ -370,9 +390,9 @@ Each phase names concrete tasks, the **owner** (🛠️ = builder / 🩺 = docto
 - **DoD:** on the live URL, an in-scope question (incl. a paraphrase not using the KB's exact words) returns a correct, cited answer via hybrid retrieval + rerank; an out-of-scope one returns the honest fallback.
 
 ### P4 — Guardrails: symptom/emergency + intent/scope (Sat morning) — the differentiator
-- 🩺 Finalise the **three-way severity taxonomy** (`none`/`normal`/`serious`) + labelled examples + the exact escalation copy (grounded in the public 115 line / HD.25.01) **and** the normal-symptom redirect copy (§6.1); write the fixed **out-of-scope default response** (§6.2) and confirm the four-intent allowlist.
+- 🩺 Finalise the **three-way severity taxonomy** (`none`/`normal`/`serious`) + labelled examples + the exact escalation copy (grounded in the public 115 line / HD.25.01) **and** the normal-symptom redirect copy (§6.1); write the fixed **out-of-scope default response** (§6.2) and confirm the five-intent allowlist.
 - 🛠️ Implement `emergency/{classify,responses,case}.ts` + `app/api/emergency/route.ts`, wired as **step 2 (before RAG)** — the classifier is the **sole** severity detector: `serious` shows the safe message **and raises the mocked support case**; `normal` shows the redirect + booking CTA; it **fails safe** on classifier error; then `scope/{classify,responses}.ts`, wired as **step 3 (after guardrail 1, before RAG)**; add the distinct **EMERGENCY**, **normal-symptom redirect**, **out-of-scope**, and **"I don't know"** UI states.
-- 👥 Test against `emergency-cases.json` (100% recall on `serious`; `normal` cases never escalate and never get answered medically) and `scope-cases.json` (off-topic → default response; each of the four intents answered/actioned correctly; **an oddly-phrased emergency still escalates, never declined as off-topic**).
+- 👥 Test against `emergency-cases.json` (100% recall on `serious`; `normal` cases never escalate and never get answered medically) and `scope-cases.json` (off-topic → default response; each of the five intents answered/actioned correctly; **an oddly-phrased emergency still escalates, never declined as off-topic**).
 - **DoD:** `serious` cases escalate, **raise a support case**, and skip RAG; `normal` cases get the redirect + booking CTA (no KB, no diagnosis); a simulated classifier failure **falls safe** to the safety notice; off-topic/harmful cases return the default response and skip RAG; in-scope cases proceed per their intent(s).
 
 ### P5 — Mocked booking handoff (Sat midday)
@@ -384,15 +404,19 @@ Each phase names concrete tasks, the **owner** (🛠️ = builder / 🩺 = docto
 - 👥 **Vietnamese generation-quality check on `gpt-oss-20b`** (fluency + faithfulness on the VN faq-cases). If it's weak, **swap to a stronger FPT-catalog model (Qwen3/DeepSeek) via one env var** and re-measure — decide before feature freeze.
 - 🛠️ **Tune** the hybrid mix (RRF inputs, candidate N, rerank top-k) against the eval set; confirm the reranker's precision lift vs. fusion-only. Add a lightweight query-rewrite only if eval shows a real gap.
 - 🛠️ Polish the golden-path UI, citation chips, Vietnamese copy, loading/error states; make the emergency + "I don't know" states obviously visible.
-- **DoD:** eval numbers (incl. cost) recorded; UI clean on the golden path; **features frozen at 23:00**.
+- 🛠️ **Commit the eval numbers to `RESULTS.md`** (recall on `serious`, precision@k after rerank, baseline-vs-retrieval lift, cost/latency) — completeness/maturity is only AI-checkable if the numbers live *in the repo*, not just on a slide.
+- **DoD:** eval numbers (incl. cost) recorded **and committed to `RESULTS.md`**; UI clean on the golden path; **features frozen at 23:00**.
 
 ### P7 — Deploy & productionize (Guidebook §7) (Sat night → Sun AM)
-- 🛠️ Add the app `Dockerfile`; confirm the **model endpoints are env-swappable** (all three point at FPT via one base URL + key, and can move to a dedicated FPT / on-prem GPU endpoint by changing that variable); enable **prompt caching** on the static prefix; add **retries/timeouts** around all FPT calls + the **keyword-only fallback**; write the privacy posture (no PII stored, stateless, KB is public content, inference in FPT's VN/JP region) into the README.
-- **DoD:** `docker build` runs for the app; README documents run + deploy + privacy; the model base URL/key swaps via one env var; a simulated FPT-endpoint failure degrades to keyword-only instead of erroring.
+- 🛠️ Add the app `Dockerfile`; confirm the **model endpoints are env-swappable** (all three point at FPT via one base URL + key, and can move to a dedicated FPT / on-prem GPU endpoint by changing that variable); enable **prompt caching** on the static prefix; add **retries/timeouts** around all FPT calls + the **keyword-only fallback**.
+- 🛠️ **Complete the README to the §7 spec** — the **requirement-coverage table** (each brief requirement → where implemented), the architecture section (+ `ARCHITECTURE.md`), how-to-run/deploy, deployment status/live URL, and the privacy posture (no PII stored, stateless, KB is public content, inference in FPT's VN/JP region). This is the highest-leverage artifact for the AI evaluator (Scoring-Criteria-Guide §2.1) — the humans read it too.
+- 🛠️ **Code-quality freeze check:** remove dead/commented-out code, placeholder text, and stray `TODO`s; confirm module boundaries match §7; keep the commit history clean and described. These are the exact signals the AI reads for "source code quality & structure" and "completeness/maturity."
+- **DoD:** `docker build` runs for the app; the README meets the §7 spec (requirement-coverage table + architecture + run/deploy + privacy) and mirrors the submission description; the model base URL/key swaps via one env var; a simulated FPT-endpoint failure degrades to keyword-only instead of erroring; no placeholder/dead code left in the tree.
 
 ### P8 — Deliverables + submit (Sun, Playbook 07:00–10:00)
-- 👥 Record the ≤5-min **demo video** (safety net), finalise slides, project description (state the AI-native core + requirement coverage explicitly for the Round-1 AI screen), and the **AI-collaboration log**; final deploy; **submit by 10:00** (gate 11:00, no extensions).
-- **DoD:** all six deliverables submitted; live URL verified from a fresh device.
+- 👥 Record the ≤5-min **demo video** (safety net), finalise slides, project description (state the AI-native core + requirement coverage explicitly for the AI screen), and the **AI-collaboration log**; final deploy; **submit by 10:00** (gate 11:00, no extensions).
+- 👥 **Make the repo README mirror the submission description** — the AI evaluator reads the *repo* at every checkpoint, not only the submission form, so the requirement-coverage and AI-native-core claims must appear in both (Scoring-Criteria-Guide §2).
+- **DoD:** all six deliverables submitted; live URL verified from a fresh device; the public repo (README to §7 spec, `ARCHITECTURE.md`, `RESULTS.md`, clean tree) matches what the submission claims.
 
 ### Iterate — roadmap only (Guidebook §9), *not* the 48h
 For the business/pilot story (not to build now): further retrieval gains (query rewriting, multi-vector/ColBERT, learned fusion weights), real hospital API integration, moving inference to **dedicated FPT AI Factory capacity or on-prem GPU** at higher volume / for the strictest data posture, and the ASR/TTS bonus. Frame these as the post-pilot roadmap. (The vector DB + reranker are already in the core build, not roadmap.)
@@ -404,7 +428,7 @@ For the business/pilot story (not to build now): further retrieval gains (query 
 Evaluation is a thread, not a final step. Use the held-out golden sets from P2 consistently.
 
 - **(a) Emergency eval (the one that matters most):** run `emergency-cases.json` against the LLM classifier; the target metric is **recall on `serious` = 100%** (a miss is a project failure; a `normal` misclassified as `serious` is acceptable). Also verify a `serious` verdict **raises the support case**, a `normal` verdict returns the **redirect + booking CTA (never answered medically, never escalated)**, and that a **simulated classifier failure (error/timeout) falls safe** to the safety notice instead of proceeding to RAG. Report the recall number out loud in the pitch.
-- **(a2) Scope eval:** run `scope-cases.json` — **out-of-scope/harmful queries return the default response (not an answer)**, **each of the four intents (`booking`/`bhyt_pricing`/`hospital_info`/`doctor_schedule`) is recognized and handled correctly**, and **an oddly-phrased emergency or symptom question still routes through guardrail 1, never declined as off-topic**. Tune for **low false-decline on in-scope** questions; a rare false-decline is safer than answering off-topic, but shouldn't turn away real patients.
+- **(a2) Scope eval:** run `scope-cases.json` — **out-of-scope/harmful queries return the default response (not an answer)**, **each of the five intents (`booking`/`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`) is recognized and handled correctly**, and **an oddly-phrased emergency or symptom question still routes through guardrail 1, never declined as off-topic**. Tune for **low false-decline on in-scope** questions; a rare false-decline is safer than answering off-topic, but shouldn't turn away real patients.
 - **(b) Retrieval vs. generation separated:** measure **retrieval** apart from **answer quality** (LLM-as-judge: correct + grounded + cited). For retrieval, report **fused recall@N** (did the right chunk/rule survive fusion?) *and* **precision@k after rerank** (did the reranker put it in the top-k?), and compare **dense-only vs keyword-only vs fused vs fused+rerank** to prove each arm and the reranker earn their place. Change one variable at a time (keywords, dictionary, RRF inputs, rerank top-k).
 - **(c) Baseline vs. retrieval:** keep the P3 zero-shot baseline numbers to demonstrate the retrieval pipeline's lift.
 - **(d) Cost/latency (the case-study metric):** record **tokens and $ per conversation** summed across the **three FPT endpoint calls** (embed + rerank + `gpt-oss-20b`) plus **embedding + rerank latency per turn** on the eval set, and project $/day at hospital scale (§12) — this number goes on a slide. (The FPT free credit covers the whole eval.)
@@ -430,7 +454,7 @@ Evaluation is a thread, not a final step. Use the held-out golden sets from P2 c
 |---|---|---|
 | Serverless statelessness breaks "memory" | Med | App resends *minimal* history each call; no in-process session state assumed. |
 | Retrieval misses paraphrases/slang | Med | **Hybrid** covers it from both sides: semantic (VN embeddings) catches paraphrases, keyword+dictionary catches exact terms/abbreviations, RRF fuses them, and the cross-encoder reranks — measured via the dense-vs-keyword-vs-fused eval (§9b). |
-| Multi-intent query answered only partially (one intent retrieved, another missed) | Med | **Multi-label** intent (`intents[]` over `booking`/`bhyt_pricing`/`hospital_info`/`doctor_schedule`, §6.2); retrieval uses a **soft topic filter** (union, never single-topic exclusion) so all matched intents' chunks enter the pool; the **reranker** sorts across intents; the generation prompt must **address all parts**; booking handled as an action. Validated by the §9(a3) multi-intent eval. |
+| Multi-intent query answered only partially (one intent retrieved, another missed) | Med | **Multi-label** intent (`intents[]` over `booking`/`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`, §6.2); retrieval uses a **soft topic filter** (union, never single-topic exclusion) so all matched intents' chunks enter the pool; the **reranker** sorts across intents; the generation prompt must **address all parts**; booking handled as an action. Validated by the §9(a3) multi-intent eval. |
 | FPT AI Factory endpoint unavailable / slow / rate-limited, or free credit exhausted | Med | Retries + timeouts on all three calls; **retrieval degrades to keyword-only** if embed/rerank fails; **the emergency path fails safe** (classifier error → show the safety notice, never silently skip); the KB is embedded **offline** at ingest so only the live query hits the embed endpoint; monitor the credit budget; recorded demo video as backstop. |
 | **`gpt-oss-20b` Vietnamese generation quality weaker than a frontier model** | Med | Eval on the doctor's VN faq-cases (§9); if short, **swap to a stronger FPT-catalog model (Qwen3/DeepSeek) via one env var** — the strict grounding prompt + reranked context also reduce the burden on the model. |
 | VN embedding/rerank quality weak on medical/insurance jargon | Low-Med | FPT's models are **Vietnamese-tuned**; the keyword arm + structured rules backstop rare exact terms; validate on the doctor's eval set. |
