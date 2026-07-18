@@ -68,6 +68,104 @@ function Typewriter({ text, animate }: { text: string; animate: boolean }) {
   return <p className="whitespace-pre-wrap leading-relaxed">{shown}</p>;
 }
 
+interface TextSegment {
+  type: "text";
+  content: string;
+}
+interface TableSegment {
+  type: "table";
+  headers: string[];
+  rows: string[][];
+}
+type MessageSegment = TextSegment | TableSegment;
+
+const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+const isSeparatorRow = (line: string) => /^\s*\|[\s:|-]+\|\s*$/.test(line);
+const splitRow = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+
+/** Splits a message into prose and Markdown-table segments so tables can render as real <table>s. */
+function parseSegments(text: string): MessageSegment[] {
+  const lines = text.split("\n");
+  const segments: MessageSegment[] = [];
+  let buffer: string[] = [];
+  const flushText = () => {
+    const content = buffer.join("\n").trim();
+    if (content) segments.push({ type: "text", content });
+    buffer = [];
+  };
+  let i = 0;
+  while (i < lines.length) {
+    if (isTableRow(lines[i]) && isSeparatorRow(lines[i + 1] ?? "")) {
+      flushText();
+      const headers = splitRow(lines[i]);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      segments.push({ type: "table", headers, rows });
+      continue;
+    }
+    buffer.push(lines[i]);
+    i++;
+  }
+  flushText();
+  return segments;
+}
+
+function MessageBody({ text, animate }: { text: string; animate: boolean }) {
+  const segments = parseSegments(text);
+  if (!segments.some((s) => s.type === "table")) {
+    return <Typewriter text={text} animate={animate} />;
+  }
+  return (
+    <div className="space-y-2">
+      {segments.map((seg, i) =>
+        seg.type === "text" ? (
+          <p key={i} className="whitespace-pre-wrap leading-relaxed">
+            {seg.content}
+          </p>
+        ) : (
+          <div key={i} className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  {seg.headers.map((h, hi) => (
+                    <th
+                      key={hi}
+                      className="border-b border-current/20 px-2 py-1 text-left font-semibold"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {seg.rows.map((row, ri) => (
+                  <tr key={ri} className="border-b border-current/10">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="px-2 py-1">
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
 function BookingPanel() {
   return (
     <div className="mt-3 flex flex-col gap-2 border-t border-current/10 pt-3 text-sm">
@@ -215,7 +313,7 @@ export default function ChatPage() {
                     ⚠ Cảnh báo cấp cứu
                   </p>
                 )}
-                <Typewriter text={m.text} animate={!!m.animate} />
+                <MessageBody text={m.text} animate={!!m.animate} />
                 {m.responseType === "emergency" && (
                   <a
                     href="tel:115"
