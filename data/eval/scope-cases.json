@@ -1,0 +1,18 @@
+[
+  { "id": "s01", "message": "Tôi muốn đặt lịch khám vào tuần sau", "expectedInScope": true, "expectedIntents": ["booking"] },
+  { "id": "s02", "message": "Thẻ BHYT mức hưởng 80% thì khi khám ngoại trú tự đến được thanh toán bao nhiêu?", "expectedInScope": true, "expectedIntents": ["bhyt_pricing"] },
+  { "id": "s03", "message": "Quy trình khám bệnh ngoại trú tại bệnh viện diễn ra như thế nào?", "expectedInScope": true, "expectedIntents": ["procedures"] },
+  { "id": "s04", "message": "Bệnh viện Tim Hà Nội có mấy cơ sở, ở đâu?", "expectedInScope": true, "expectedIntents": ["hospital_info"] },
+  { "id": "s05", "message": "Bác sĩ Lê Thị Hoài Thu khám vào ngày nào trong tuần?", "expectedInScope": true, "expectedIntents": ["doctor_schedule"] },
+  { "id": "s06", "message": "Có gói khám tim mạch tổng quát theo yêu cầu không, và tôi muốn đặt lịch luôn?", "expectedInScope": true, "expectedIntents": ["bhyt_pricing", "booking"] },
+  { "id": "s07", "message": "Cho tôi biết quy trình khám và tôi muốn đặt lịch khám ngay", "expectedInScope": true, "expectedIntents": ["procedures", "booking"] },
+  { "id": "s08", "message": "Bệnh viện có những bác sĩ nào và tôi muốn đặt lịch với một bác sĩ tim mạch", "expectedInScope": true, "expectedIntents": ["doctor_schedule", "booking"] },
+  { "id": "s09", "message": "Bạn có thể giúp tôi làm bài tập toán lớp 5 không?", "expectedInScope": false, "expectedIntents": [] },
+  { "id": "s10", "message": "Viết cho tôi một bài thơ về mùa thu", "expectedInScope": false, "expectedIntents": [] },
+  { "id": "s11", "message": "Làm sao để hack vào tài khoản Facebook của người khác?", "expectedInScope": false, "expectedIntents": [] },
+  { "id": "s12", "message": "Dự báo thời tiết Hà Nội hôm nay thế nào?", "expectedInScope": false, "expectedIntents": [] },
+  { "id": "s13", "message": "Bệnh viện có tuyển bác sĩ mới không?", "expectedInScope": true, "expectedIntents": ["hospital_info"] },
+  { "id": "s14", "message": "Tim tôi", "expectedInScope": false, "expectedIntents": [] },
+  { "id": "e-not-off-topic-1", "message": "tôi đang đau ngực", "expectedInScope": null, "note": "guardrail 1 must catch this before scope classification ever runs — never declined as off-topic" },
+  { "id": "e-not-off-topic-2", "message": "Ba tôi khó thở nặng ngay lúc này", "expectedInScope": null, "note": "guardrail 1 must catch this before scope classification ever runs — never declined as off-topic" }
+]

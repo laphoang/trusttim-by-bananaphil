@@ -1,0 +1,74 @@
+[
+  {
+    "id": "f01",
+    "message": "Thẻ BHYT mức hưởng 100% khi khám ngoại trú tự đến không đúng tuyến được thanh toán bao nhiêu phần trăm?",
+    "topic": "bhyt_pricing",
+    "expectedChunkIds": ["bhyt-coverage-outpatient-policy", "rule-bhyt_coverage_outpatient_self_referral-0"]
+  },
+  {
+    "id": "f02",
+    "message": "Giá khám theo yêu cầu mức 1 ở cơ sở 1 là bao nhiêu?",
+    "topic": "bhyt_pricing",
+    "expectedChunkIds": ["on-demand-exam-pricing-table"]
+  },
+  {
+    "id": "f03",
+    "message": "BHYT chi trả tối đa cho một ngày giường hồi sức tích cực là bao nhiêu?",
+    "topic": "bhyt_pricing",
+    "expectedChunkIds": ["bhyt-max-reimbursement-table"]
+  },
+  {
+    "id": "f04",
+    "message": "Quy trình khám bệnh ngoại trú gồm những bước nào?",
+    "topic": "procedures",
+    "expectedChunkIds": ["outpatient-reception-flow"]
+  },
+  {
+    "id": "f05",
+    "message": "Đến khám thì cần mang giấy tờ gì và đăng ký ở đâu?",
+    "topic": "procedures",
+    "expectedChunkIds": ["outpatient-reception-flow"]
+  },
+  {
+    "id": "f06",
+    "message": "Khoa Khám bệnh Tự nguyện phục vụ đối tượng bệnh nhân nào?",
+    "topic": "hospital_info",
+    "expectedChunkIds": ["voluntary-dept-overview"]
+  },
+  {
+    "id": "f07",
+    "message": "Số điện thoại tổng đài của bệnh viện là gì?",
+    "topic": "hospital_info",
+    "expectedChunkIds": ["hospital-contact-numbers"]
+  },
+  {
+    "id": "f08",
+    "message": "Muốn đặt lịch khám thì cần đặt trước bao lâu?",
+    "topic": "hospital_info",
+    "expectedChunkIds": ["booking-policy-and-channels"]
+  },
+  {
+    "id": "f09",
+    "message": "Bác sĩ nào khám tại phòng 505 vào các ngày trong tuần?",
+    "topic": "doctor_schedule",
+    "expectedChunkIds": ["doctor-schedule-cs2-voluntary-exam-rooms"]
+  },
+  {
+    "id": "f10",
+    "message": "Phòng khám Tai Mũi Họng ở cơ sở 2 do bác sĩ nào phụ trách?",
+    "topic": "doctor_schedule",
+    "expectedChunkIds": ["doctor-schedule-cs2-multi-specialty"]
+  },
+  {
+    "id": "f11",
+    "message": "Xét nghiệm khám sức khỏe thông thường gồm những gì?",
+    "topic": "hospital_info",
+    "expectedChunkIds": ["standard-checkup-tests"]
+  },
+  {
+    "id": "f12",
+    "message": "Bệnh nhân cấp cứu có được hưởng BHYT không cần chuyển tuyến không?",
+    "topic": "bhyt_pricing",
+    "expectedChunkIds": ["rule-bhyt_coverage_emergency-6", "bhyt-coverage-outpatient-policy"]
+  }
+]
