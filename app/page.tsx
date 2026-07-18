@@ -72,7 +72,7 @@ function BookingPanel() {
   return (
     <div className="mt-3 flex flex-col gap-2 border-t border-current/10 pt-3 text-sm">
       {BOOKING_FACILITIES.map((f) => (
-        <div key={f.id} className="flex flex-wrap items-center gap-2">
+        <div key={f.id} className="flex flex-wrap items-center justify-between gap-2">
           <span className="opacity-80">
             {f.label}: {f.address}
           </span>
@@ -86,9 +86,12 @@ function BookingPanel() {
           </a>
         </div>
       ))}
-      <a href={`tel:${BOOKING_CONTACT.hotline}`} className="underline">
-        Tổng đài: {BOOKING_CONTACT.hotline}
-      </a>
+      <span>
+        Tổng đài:{" "}
+        <a href={`tel:${BOOKING_CONTACT.hotline}`} className="underline">
+          {BOOKING_CONTACT.hotline}
+        </a>
+      </span>
     </div>
   );
 }
