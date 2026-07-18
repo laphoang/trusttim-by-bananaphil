@@ -203,7 +203,7 @@ Patients use abbreviations, slang, and context-dependent follow-ups. Maintain a 
 The KB is large, so retrieval combines a **semantic** arm (catches paraphrases and synonyms the keyword layer would miss) with the **keyword/rule** arm from §5.1–§5.6 (exact on abbreviations, rules, and rare terms a dense model may blur). Neither alone is enough on a large Vietnamese KB; together, fused and reranked, they are.
 
 **Embedding + reranker model (FPT AI Factory, Vietnamese-first).**
-- **Embeddings:** FPT's **`vietnamese-embedding`** endpoint (a BGE-M3-family Vietnamese model). Chosen for genuine Vietnamese quality, and because it's a **managed pay-as-you-go, OpenAI-compatible** call with inference in FPT's VN/JP region — nothing to self-host. Both KB chunks (at ingest) and the live query (at request time) are embedded by the same endpoint. **Confirm the output dimension from the live endpoint** and set the `pgvector` column to match (BGE-M3 is typically 1024).
+- **Embeddings:** FPT's **`vietnamese-embedding`** endpoint (a BGE-M3-family Vietnamese model). Chosen for genuine Vietnamese quality, and because it's a **managed pay-as-you-go, OpenAI-compatible** call with inference in FPT's VN/JP region — nothing to self-host. Both KB chunks (at ingest) and the live query (at request time) are embedded by the same endpoint, but **with different `input_type`** (`"passage"` at ingest, `"query"` at retrieval) — this asymmetric-embedding detail isn't optional; see `TrustTim_Implementation-Spec.md` §1.2 for why getting it backwards silently degrades retrieval with no error. **Confirm the output dimension from the live endpoint** and set the `pgvector` column to match (BGE-M3 is typically 1024; the Implementation Spec's example request confirms 1024).
 - **Reranker (required):** FPT's **`bge-reranker-v2-m3`** endpoint — a multilingual cross-encoder that scores each candidate against the actual query. Same OpenAI-compatible client/key as the other two models.
 - **Resilience:** both are external calls — wrap with retries/timeouts, and if either is unavailable **fall back to keyword-only retrieval** (§5.6 dictionary + FTS + structured rules) so the turn still answers.
 
@@ -353,6 +353,8 @@ trusttim/
 8. **Privacy posture + tech stack** — the §10 readiness narrative in brief.
 
 Keep `ARCHITECTURE.md` a trimmed product-repo copy of this guide's map (§2 + §3), and `RESULTS.md` the committed eval output from §9 — both exist so the AI reader finds the completeness/architecture evidence *in the repo*, not only in the submission form.
+
+**Before handing any of this to Cursor:** see `TrustTim_Implementation-Spec.md` for the literal Zod schemas, prompt templates, SQL, env vars, and FPT AI Factory API contracts (grounded in `llm_api_example.md`) to drop directly into the files above — including two real gotchas (a non-standard response envelope on chat/completions, and an asymmetric embedding parameter) that aren't obvious from this guide's prose alone.
 
 ---
 

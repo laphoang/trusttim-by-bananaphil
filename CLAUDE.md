@@ -23,6 +23,7 @@ first for fast orientation; it does not replace the canonical guide.
 | `AI Project Guidebook.md` | General phase-by-phase AI/LLM project methodology (Frame → Choose Approach → Select Models → Prepare Data → Build → Evaluate → Deploy → Agentic → Iterate), with the escalation ladder, core mental models, and per-phase checklists. The methodology the architecture guide applies. |
 | `university_admissions_chatbot_case_study.md` | Real-world case study (Yersin University Vietnamese admissions RAG chatbot) — 2,000–4,000 conversations/day at ~$2/day via knowledge-demand analysis, manual chunking, prose→structured-logic, and deterministic-first multi-stage retrieval. The cost-effective/lightweight blueprint TrustTim's architecture follows. |
 | `llm_api_example.md` | Copy-paste request/response examples (curl + JSON) for the three FPT AI Factory models — `bge-reranker-v2-m3`, `vietnamese-embedding`, `gpt-oss-20b` — incl. endpoint URLs, context lengths, and per-token pricing. |
+| `TrustTim_Implementation-Spec.md` | Copy-paste-ready implementation artifacts for handing the project to Cursor: literal Zod schemas for both classifiers, final prompt templates (severity/intent/generation + all six fixed response copies), the pgvector `CREATE TABLE` SQL, an env var table, and the three FPT API request/response contracts grounded in `llm_api_example.md`. Surfaces two gotchas not obvious from the architecture guide's prose — `gpt-oss-20b`'s chat/completions response wraps the real payload in a `{code, message, data}` envelope, and the embeddings endpoint needs a different `input_type` (`passage` vs `query`) at ingest vs. query time. |
 
 ### `hackathon_docs/problem_statement/` — the actual challenge materials (canonical)
 
@@ -46,6 +47,7 @@ Contains the original source PDFs (scanned/exported) and superseded Vietnamese-l
 - **...see our analyzed/locked solution direction, or the open questions we still need to answer** → `hackathon_docs/guide/VAIC2026_Problem-Statement-Analysis.md`
 - **...know how to actually build/deploy/test TrustTim, the stack, the FPT AI Factory model endpoints (gpt-oss-20b + vietnamese-embedding + bge-reranker-v2-m3), the hybrid pgvector retrieval design, the 6-category intent taxonomy, the guardrails (symptom/emergency triage + intent/scope filtering), and why each tool** → `hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md`
 - **...follow the general AI/LLM project methodology or phase checklists** → `hackathon_docs/guide/AI Project Guidebook.md`
+- **...get copy-paste-ready schemas/prompts/SQL/env vars/API gotchas before handing this to Cursor** → `hackathon_docs/guide/TrustTim_Implementation-Spec.md`
 - **...see the real-world lightweight/cheap RAG case study that shapes our cost & retrieval approach** → `hackathon_docs/guide/university_admissions_chatbot_case_study.md`
 - **...get a working curl example / exact request-response shape for an FPT AI Factory model call** → `hackathon_docs/guide/llm_api_example.md`
 - **...check what the challenge actually requires us to build** → `hackathon_docs/problem_statement/Hanoi_heart_hospital_problem_statement.md`
