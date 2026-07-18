@@ -4,7 +4,7 @@
 from official hospital information, and detects real cardiac emergencies to route them to
 emergency care instead of answering.**
 
-**Live URL:** _not yet deployed — see [How to run + deploy](#how-to-run--deploy) below._
+**Live URL:** https://trusttim-by-bananaphil.vercel.app/
 
 Team BananaPhil · Vietnam AI Innovation Challenge 2026 (VAIC 2026).
 
@@ -15,14 +15,14 @@ Team BananaPhil · Vietnam AI Innovation Challenge 2026 (VAIC 2026).
 Hanoi Heart Hospital needs an AI customer-care assistant that answers FAQs, integrates with
 booking, never hallucinates, escalates real emergencies, and is deployment-ready. Coverage:
 
-| Brief requirement | Where it's implemented |
-|---|---|
-| FAQ answering (BHYT, procedures, hospital info, doctor schedules) | Hybrid RAG pipeline — [`lib/rag/retrieve.ts`](lib/rag/retrieve.ts), [`lib/rag/rerank.ts`](lib/rag/rerank.ts), [`lib/rag/generate.ts`](lib/rag/generate.ts), over the curated KB in [`hackathon_docs/kb/`](hackathon_docs/kb/) |
-| Booking integration | [`lib/booking/mock-data.ts`](lib/booking/mock-data.ts) + [`app/api/booking/route.ts`](app/api/booking/route.ts); booking CTA attached whenever `booking` is a matched intent — [`lib/chat/pipeline.ts`](lib/chat/pipeline.ts) |
-| Conversational experience | [`app/page.tsx`](app/page.tsx) — chat widget with distinct UI states per response type |
-| Grounded / no-hallucination, "I don't know" | Grounding gate in [`lib/rag/rerank.ts`](lib/rag/rerank.ts) (relevance threshold) + [`lib/scope/responses.ts`](lib/scope/responses.ts) `GROUNDING_GATE_MESSAGE`; citations in every grounded answer |
-| Emergency detection & escalation | [`lib/emergency/`](lib/emergency/) — `classify.ts` (severity classifier), `responses.ts` (fixed escalation copy), `case.ts` (mocked support case); runs **before** everything else in [`lib/chat/pipeline.ts`](lib/chat/pipeline.ts), fails safe on error |
-| Deployment readiness | [`Dockerfile`](Dockerfile); all model endpoints env-swappable via [`.env.example`](.env.example) |
+| Brief requirement                                                 | Where it's implemented                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FAQ answering (BHYT, procedures, hospital info, doctor schedules) | Hybrid RAG pipeline — [`lib/rag/retrieve.ts`](lib/rag/retrieve.ts), [`lib/rag/rerank.ts`](lib/rag/rerank.ts), [`lib/rag/generate.ts`](lib/rag/generate.ts), over the curated KB in [`hackathon_docs/kb/`](hackathon_docs/kb/)                             |
+| Booking integration                                               | [`lib/booking/mock-data.ts`](lib/booking/mock-data.ts) + [`app/api/booking/route.ts`](app/api/booking/route.ts); booking CTA attached whenever `booking` is a matched intent — [`lib/chat/pipeline.ts`](lib/chat/pipeline.ts)                             |
+| Conversational experience                                         | [`app/page.tsx`](app/page.tsx) — chat widget with distinct UI states per response type                                                                                                                                                                    |
+| Grounded / no-hallucination, "I don't know"                       | Grounding gate in [`lib/rag/rerank.ts`](lib/rag/rerank.ts) (relevance threshold) + [`lib/scope/responses.ts`](lib/scope/responses.ts) `GROUNDING_GATE_MESSAGE`; citations in every grounded answer                                                        |
+| Emergency detection & escalation                                  | [`lib/emergency/`](lib/emergency/) — `classify.ts` (severity classifier), `responses.ts` (fixed escalation copy), `case.ts` (mocked support case); runs **before** everything else in [`lib/chat/pipeline.ts`](lib/chat/pipeline.ts), fails safe on error |
+| Deployment readiness                                              | [`Dockerfile`](Dockerfile); all model endpoints env-swappable via [`.env.example`](.env.example)                                                                                                                                                          |
 
 ---
 
@@ -74,6 +74,7 @@ supervise the model, but the model is what makes the routing and answering possi
 ## How AI is used
 
 **In-product:**
+
 - RAG grounding — dense + keyword hybrid retrieval, reranked, generation constrained to retrieved
   context only ([`lib/rag/`](lib/rag/)).
 - Emergency guardrail — an LLM classifier is the sole severity detector, fail-safe on error
