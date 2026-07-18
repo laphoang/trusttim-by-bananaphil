@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { BOOKING_CONTACT } from "@/lib/booking/mock-data";
+import { BOOKING_CTA_LABEL } from "@/lib/scope/responses";
 
 type ResponseType =
   | "emergency"
@@ -35,14 +37,6 @@ interface DisplayMessage {
   animate?: boolean;
 }
 
-interface MockSlot {
-  doctorId: string;
-  doctorName: string;
-  room: string;
-  date: string;
-  weekday: string;
-}
-
 const STYLE_BY_TYPE: Record<ResponseType, string> = {
   emergency: "border-red-600 bg-red-50 text-red-900",
   normal_symptom_redirect: "border-amber-500 bg-amber-50 text-amber-900",
@@ -75,46 +69,22 @@ function Typewriter({ text, animate }: { text: string; animate: boolean }) {
 }
 
 function BookingPanel() {
-  const [slots, setSlots] = useState<MockSlot[] | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function loadSlots() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/booking");
-      const data = await res.json();
-      setSlots(data.slots.slice(0, 5));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="mt-3 border-t border-current/10 pt-3">
-      {!slots && (
-        <button
-          onClick={loadSlots}
-          disabled={loading}
-          className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-60"
-        >
-          {loading ? "Đang tải..." : "Đặt lịch khám ngay"}
-        </button>
-      )}
-      {slots && (
-        <div className="text-sm">
-          <p className="mb-1 font-medium">Lịch trống gần nhất (mô phỏng):</p>
-          <ul className="space-y-1">
-            {slots.map((s, i) => (
-              <li key={i} className="rounded bg-white/70 px-2 py-1">
-                {s.weekday} ({s.date}) — {s.doctorName}, {s.room}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs opacity-70">
-            Dữ liệu mô phỏng. Xác nhận thật qua tổng đài 19001082.
-          </p>
-        </div>
-      )}
+    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-current/10 pt-3 text-sm">
+      <a
+        href={BOOKING_CONTACT.bookingUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-md bg-brand px-3 py-1.5 font-medium text-white hover:bg-brand/90"
+      >
+        {BOOKING_CTA_LABEL}
+      </a>
+      <a href={`tel:${BOOKING_CONTACT.hotline}`} className="underline">
+        {BOOKING_CONTACT.hotline}
+      </a>
+      <span className="opacity-70">
+        hoặc {BOOKING_CONTACT.zalo} · đặt hẹn trước ít nhất {BOOKING_CONTACT.minHoursInAdvance} giờ
+      </span>
     </div>
   );
 }
