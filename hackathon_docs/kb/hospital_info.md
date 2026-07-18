@@ -5,68 +5,39 @@ transcribing the §5 schedule screenshots (image4/image5).
 
 ```json
 {
-  "id": "voluntary-dept-overview",
+  "id": "hospital-dept-overview",
   "topic": "hospital_info",
-  "title": "Giới thiệu Khoa Khám bệnh Tự nguyện — đối tượng phục vụ",
-  "keywords": ["giới thiệu bệnh viện", "khoa khám bệnh tự nguyện", "đối tượng phục vụ", "ban lãnh đạo"],
-  "source_url": "https://benhvientimhanoi.vn/vn/cong/thong-tin/gioi-thieu-chung",
+  "title": "Cơ cấu tổ chức",
+  "keywords": ["giới thiệu bệnh viện", "khoa", "phòng ban", "trung tâm"],
+  "source_url": "https://benhvientimhanoi.vn/vn/cong/thong-tin/co-cau-to-chuc",
   "last_reviewed": "2026-07-18",
   "is_synthetic": false
 }
 ```
 
-Chúng tôi phục vụ tất cả các đối tượng bệnh nhân, bao gồm:
-- Bệnh nhân mắc bệnh tim mạch – chuyển hóa, bệnh nhân sau can thiệp hoặc phẫu thuật tim mạch.
-- Bệnh nhân các chuyên khoa khác cần kiểm tra tình trạng tim mạch trước khi thực hiện các bước điều trị chuyên khoa (phẫu thuật, xạ trị, hóa chất, sinh con…).
-- Các khách hàng có nhu cầu kiểm tra sức khỏe tổng quát, định kỳ mỗi 6 tháng/1 năm.
-- Mọi lứa tuổi từ sơ sinh đến người cao tuổi có nhu cầu khám tim mạch từ cơ bản đến chuyên sâu.
-- Sản phụ thuộc nhóm nguy cơ cao nên thực hiện siêu âm tim thai từ tuần thai thứ 18.
+Cơ cấu tổ chức Bệnh viện Tim Hà Nội dưới sự quản lý trực tiếp của Ban Giám đốc được chia làm 3 khối chức năng chính: Khối Hành chính, Khối Lâm sàng, và Khối Cận lâm sàng.
 
-Xem thêm: [Ban lãnh đạo bệnh viện](https://benhvientimhanoi.vn/vn/cong/thong-tin/ban-lanh-dao)
+1. Khối Hành chính (Thuộc Ban Giám đốc)
 
----
+Phòng ban chức năng trực thuộc Khối Hành chính: Phòng Kế hoạch Tổng hợp, Phòng Tổ chức Cán bộ, Phòng Hành chính Quản trị, Phòng Tài chính Kế toán, Phòng Vật tư, Phòng Điều dưỡng, Phòng Quản lý Chất lượng, Phòng Công tác Xã hội, Phòng Công nghệ Thông tin.
 
-```json
-{
-  "id": "standard-checkup-tests",
-  "topic": "hospital_info",
-  "title": "Các xét nghiệm — khám sức khỏe thông thường",
-  "keywords": ["xét nghiệm", "điện tim đồ", "x quang tim phổi", "siêu âm doppler tim", "khám sức khỏe tổng quát"],
-  "source_url": null,
-  "last_reviewed": "2026-07-18",
-  "is_synthetic": false
-}
-```
+Trung tâm Đào tạo và Chỉ đạo tuyến (Thuộc Khối Hành chính) quản lý trực tiếp: Phòng Đào tạo, Phòng Nghiên cứu Khoa học, Phòng Chỉ đạo tuyến và Luân phiên cán bộ.
 
-Đối với khám sức khỏe thông thường: điện tim đồ, X quang tim phổi, siêu âm – Doppler tim thường quy, xét nghiệm cơ bản (công thức máu, đông máu cơ bản, chức năng gan thận, đường máu, mỡ máu, acid uric, tổng phân tích nước tiểu…), siêu âm ổ bụng.
+2. Khối Lâm sàng (Thuộc Ban Giám đốc)
 
----
+Khoa lâm sàng và phòng khám trực thuộc Khối Lâm sàng: Khoa Khám bệnh, Khoa Khám bệnh Tự nguyện, Khoa Quốc tế, Khoa Nội, Khoa Điều trị Ban ngày, Khoa Tim mạch Chuyển hóa, Khoa Các bệnh Mạch máu, Khoa Dinh dưỡng, Phòng khám Đa khoa.
 
-```json
-{
-  "id": "specialized-checkup-tests",
-  "topic": "hospital_info",
-  "title": "Các xét nghiệm chuyên sâu — tùy tính chất bệnh",
-  "keywords": ["nghiệm pháp gắng sức", "siêu âm tim dobutamine", "holter", "siêu âm tim thai", "chụp cộng hưởng từ", "CT động mạch vành"],
-  "source_url": null,
-  "last_reviewed": "2026-07-18",
-  "is_synthetic": false
-}
-```
+Trung tâm Phẫu thuật Tim mạch (Thuộc Khối Lâm sàng) quản lý trực tiếp: Khoa Phẫu thuật Tim người lớn, Khoa Phẫu thuật Mạch máu, Khoa Gây mê Hồi sức (Phòng mổ), Đơn nguyên (ĐN) Phẫu thuật Tim mạch Ít xâm lấn.
 
-Đối với các yêu cầu có tính chất chuyên khoa hơn, tùy theo tính chất bệnh, có thể thực hiện:
-- Nghiệm pháp gắng sức để sàng lọc bệnh động mạch vành và một số bệnh lý khác.
-- Siêu âm tim Dobutamine để sàng lọc bệnh động mạch vành.
-- Holter huyết áp 24h để đánh giá tình trạng huyết áp.
-- Holter Điện tim đồ 24h đánh giá các rối loạn nhịp tim.
-- Siêu âm tim qua thực quản để phục vụ chẩn đoán và một số bệnh lý cần can thiệp tim mạch.
-- Siêu âm tim 4D cho chẩn đoán chính xác các bệnh lý tim, đặc biệt cần can thiệp hoặc phẫu thuật.
-- Siêu âm – Doppler mạch máu: chẩn đoán bệnh lý mạch máu toàn thân (hẹp ĐM cảnh, suy tĩnh mạch chi dưới, hẹp ĐM thận…).
-- Đo chỉ số ABI: sàng lọc xơ vữa động mạch, đánh giá nguy cơ bệnh tim mạch.
-- Xét nghiệm máu chuyên sâu: hs Troponin, pro BNP, hs CRP, sàng lọc sớm ung thư…
-- Chụp cộng hưởng từ toàn thân.
-- Chụp cắt lớp động mạch vành 128/256 dãy và CT các bộ phận khác.
-- Siêu âm tim thai (từ tuần thai thứ 18): sàng lọc trước sinh cho các đối tượng nguy cơ cao (mẹ đái tháo đường, dùng thuốc ảnh hưởng thai, nhiễm virut/tia xạ, bệnh tự miễn, thụ tinh ống nghiệm, tiền sử gia đình/con trước mắc bệnh tim bẩm sinh, song thai 1 bánh rau/1 động mạch rốn, dị tật cơ quan khác, phù thai, rối loạn nhịp tim thai, hoặc siêu âm nghi ngờ bệnh tim thai).
+Trung tâm Hồi sức Tích cực (Thuộc Khối Lâm sàng) quản lý trực tiếp: Khoa Hồi sức Tích cực, Khoa Gây mê Hồi sức (Bộ phận Hồi sức).
+
+Trung tâm Cấp cứu và Can thiệp Tim mạch (Thuộc Khối Lâm sàng) quản lý trực tiếp: Khoa Tim mạch Can thiệp, Khoa Can thiệp Tĩnh mạch, Khoa Thăm dò Điện sinh lý và Rối loạn nhịp, Khoa Cấp cứu, Đơn nguyên (ĐN) Tim mạch Can thiệp Cơ sở 2 (CS2).
+
+Trung tâm Tim mạch Nhi (Thuộc Khối Lâm sàng) quản lý trực tiếp: Khoa Phẫu thuật Tim trẻ em, Khoa Hồi sức Tích cực Nhi, Khoa Nội Nhi, Khoa Can thiệp Tim mạch Trẻ em.
+
+3. Khối Cận lâm sàng (Thuộc Ban Giám đốc)
+
+Khoa và đơn nguyên trực thuộc Khối Cận lâm sàng: Khoa Xét nghiệm, Khoa Kiểm soát Nhiễm khuẩn, Khoa Dược, Khoa Chẩn đoán Hình ảnh, Đơn nguyên (ĐN) Chẩn đoán Hình ảnh Kỹ thuật cao.
 
 ---
 
@@ -75,18 +46,25 @@ Xem thêm: [Ban lãnh đạo bệnh viện](https://benhvientimhanoi.vn/vn/cong/
   "id": "hospital-contact-numbers",
   "topic": "hospital_info",
   "title": "Số điện thoại liên hệ theo khu vực/dịch vụ",
-  "keywords": ["số điện thoại", "hotline", "tổng đài", "liên hệ", "tư vấn 24/24"],
-  "source_url": null,
+  "keywords": [
+    "số điện thoại",
+    "hotline",
+    "tổng đài",
+    "liên hệ",
+    "24/24",
+    "website",
+    "fanpage"
+  ],
+  "source_url": "https://www.facebook.com/BenhVienTimHaNoi.vn/",
   "last_reviewed": "2026-07-18",
   "is_synthetic": false
 }
 ```
 
-- Tổng đài chung: 19001082
-- Tư vấn khám, chữa bệnh trong giờ hành chính (Cơ sở 2, khu khám tự nguyện): 02439427791
-- Tư vấn khám, chữa bệnh 24/24h (Cơ sở 2, khu khám tự nguyện): 0969655335
-- Liên hệ Phòng khám Đa khoa (Cơ sở 2), giờ hành chính thứ 2 – thứ 6: 0961.972.997
-- Website: benhvientimhanoi.vn — Fanpage: facebook.com/BenhvienTimHaNoi.vn
-
-*(The last three numbers were found while transcribing the §5 doctor-schedule screenshots, not
-originally in the doctor's §4 text — cross-check with the doctor before treating as authoritative.)*
+- Tổng đài tư vấn khám, chữa bệnh 24/24h: 19001082
+- Tư vấn khám, chữa bệnh giờ hành chính: 0869032338
+- Tư vấn đơn thuốc và bất thường giờ hành chính: 0869032338.
+- Website: https://benhvientimhanoi.vn/
+- Facebook: https://facebook.com/BenhvienTimHaNoi.vn
+- Youtube: https://www.youtube.com/BenhVienTimHaNoi92TranHungDao/
+- Email: info@benhvientimhanoi.vn
