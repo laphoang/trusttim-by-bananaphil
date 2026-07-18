@@ -25,7 +25,10 @@ export async function rerankCandidates(
   }
 
   try {
-    const results = await rerankApi(query, candidates.map((c) => c.content), TOP_K);
+    // Title is included so meta/navigational queries (e.g. "link to X") can match a chunk whose
+    // title names X even when the body content (e.g. a schedule table) doesn't lexically overlap.
+    const documents = candidates.map((c) => (c.title ? `${c.title}\n${c.content}` : c.content));
+    const results = await rerankApi(query, documents, TOP_K);
     const grounded = results.some((r) => r.relevanceScore >= RELEVANCE_THRESHOLD);
     const top = results
       .filter((r) => r.relevanceScore >= RELEVANCE_THRESHOLD)
