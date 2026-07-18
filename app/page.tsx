@@ -206,9 +206,9 @@ function CitationChips({ citations }: { citations: Citation[] }) {
           target="_blank"
           rel="noreferrer"
           title={c.freshness ?? undefined}
-          className="rounded-full border border-current/20 bg-white/60 px-2 py-0.5 text-xs underline"
+          className="rounded-full border border-current/20 bg-white/60 px-2 py-0.5 text-xs"
         >
-          {c.sourceUrl}
+          Nguồn: <span className="underline">{c.sourceUrl}</span>
           {c.isSynthetic && " · minh hoạ"}
         </a>
       ))}
