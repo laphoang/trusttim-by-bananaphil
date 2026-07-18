@@ -1,0 +1,58 @@
+import { chat } from "../llm/client";
+import type { Candidate } from "./retrieve";
+
+const SYSTEM_PROMPT = `You are TrustTim, the information assistant for Hanoi Heart Hospital (Bệnh viện Tim Hà Nội).
+Answer only using the CONTEXT provided below, in Vietnamese. If the question has multiple parts,
+address every part, combining facts from all relevant sources in the context. Cite the source of
+each fact (use the title/URL provided with each context chunk). If the CONTEXT covers some parts
+of the question but not others, answer what you can and direct the user to the hotline 1900 1082
+for the rest — never guess or fill gaps from general knowledge. You never give medical, diagnostic,
+or treatment advice, even if asked directly — redirect any such question to booking an appointment.`;
+
+export interface Citation {
+  title: string | null;
+  sourceUrl: string | null;
+  isSynthetic: boolean;
+  freshness: string | null;
+}
+
+export interface GeneratedAnswer {
+  answer: string;
+  citations: Citation[];
+}
+
+function formatContext(candidates: Candidate[]): string {
+  return candidates
+    .map(
+      (c, i) =>
+        `[${i + 1}] ${c.title ?? c.id}${c.sourceUrl ? ` (${c.sourceUrl})` : ""}${
+          c.isSynthetic ? " [minh hoạ/illustrative]" : ""
+        }${c.freshness ? ` [${c.freshness}]` : ""}\n${c.content}`,
+    )
+    .join("\n\n");
+}
+
+/** Generation over the grounded, reranked context — the citations are every chunk it was given. */
+export async function generateAnswer(
+  userMessage: string,
+  candidates: Candidate[],
+): Promise<GeneratedAnswer> {
+  const prompt = `CONTEXT:\n${formatContext(candidates)}\n\nUSER QUESTION:\n${userMessage}`;
+  const answer = await chat(
+    [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+    { temperature: 0.4, maxTokens: 1024 },
+  );
+
+  return {
+    answer,
+    citations: candidates.map((c) => ({
+      title: c.title,
+      sourceUrl: c.sourceUrl,
+      isSynthetic: c.isSynthetic,
+      freshness: c.freshness,
+    })),
+  };
+}

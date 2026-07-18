@@ -5,8 +5,10 @@
 > register — see [`hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md`](hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md)
 > (the canonical, detailed source this file distills).
 
-**Status:** docs-stage — no application code exists yet. Everything below describes the
-*intended* architecture that the build plan (guide §8) will produce.
+**Status:** implemented — the Next.js app, hybrid RAG pipeline, both guardrails, mock booking, and
+eval harness described below exist in this repo (see [`README.md`](README.md) for how to run it
+and the requirement-coverage table). KB content, live credentials, and eval numbers still need to
+be wired up/run against a real FPT AI Factory account and Postgres/pgvector instance.
 
 TrustTim is a **grounded, Vietnamese-first RAG chatbot** for Hanoi Heart Hospital that answers
 patients' logistics questions (BHYT insurance, procedures, booking) strictly from official
@@ -114,24 +116,25 @@ Full detail: [guide §5](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 
 ---
 
-## Repo layout (planned — not yet created)
+## Repo layout (as built)
 
 ```
-trusttim/
 ├─ app/
 │  ├─ page.tsx                     # chat UI (widget)
 │  └─ api/{chat,booking,emergency}/route.ts
 ├─ lib/
 │  ├─ llm/client.ts                # FPT gpt-oss-20b (OpenAI-compatible, env-swappable)
 │  ├─ embeddings/client.ts         # FPT vietnamese-embedding + bge-reranker-v2-m3
-│  ├─ db/schema.sql                # pgvector: kb_chunks + indexes
-│  ├─ rag/{ingest,normalize,retrieve,rerank}.ts
+│  ├─ db/{schema.sql,client.ts,setup.ts}  # pgvector: kb_chunks + indexes
+│  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,retrieve,rerank,generate}.ts
 │  ├─ emergency/{classify,responses,case}.ts
 │  ├─ scope/{classify,responses}.ts
-│  └─ booking/mock-data.ts
-├─ data/
-│  ├─ kb/*.md|*.json               # curated chunks + rules + dictionary
-│  └─ eval/*.json                  # emergency / scope / faq golden sets
+│  ├─ booking/mock-data.ts
+│  ├─ chat/pipeline.ts             # the ordered pipeline, called by app/api/chat/route.ts
+│  └─ usage.ts                     # token/cost tracker for the eval report
+├─ hackathon_docs/kb/*.md|*.json   # curated chunks + rules.json + dictionary.json (KB source)
+├─ data/eval/*.json                # emergency / scope / faq golden sets
+├─ scripts/{eval,selfcheck}.ts
 ├─ Dockerfile
 └─ README.md
 ```
