@@ -25,38 +25,32 @@ function buildTsQuery(text: string): string | null {
   return tokens.join(" | ");
 }
 
-async function denseArm(queryText: string, topics: string[]): Promise<Candidate[]> {
+async function denseArm(queryText: string): Promise<Candidate[]> {
   const [vector] = await embed([queryText], "query");
   const pool = getPool();
-  const topicFilter = topics.length ? "and topic = any($3)" : "";
-  const params: unknown[] = [toVectorLiteral(vector), POOL_SIZE];
-  if (topics.length) params.push(topics);
   const { rows } = await pool.query(
     `select id, topic, title, content, source_url, is_synthetic, freshness
      from kb_chunks
-     where embedding is not null ${topicFilter}
+     where embedding is not null
      order by embedding <=> $1::vector
      limit $2`,
-    params,
+    [toVectorLiteral(vector), POOL_SIZE],
   );
   return rows.map(rowToCandidate);
 }
 
-async function keywordArm(queryText: string, topics: string[]): Promise<Candidate[]> {
+async function keywordArm(queryText: string): Promise<Candidate[]> {
   const tsQuery = buildTsQuery(queryText);
   if (!tsQuery) return [];
   const pool = getPool();
-  const topicFilter = topics.length ? "and topic = any($3)" : "";
-  const params: unknown[] = [tsQuery, POOL_SIZE];
-  if (topics.length) params.push(topics);
   const { rows } = await pool.query(
     `select id, topic, title, content, source_url, is_synthetic, freshness,
             ts_rank(fts, to_tsquery('simple', $1)) as rank
      from kb_chunks
-     where fts @@ to_tsquery('simple', $1) ${topicFilter}
+     where fts @@ to_tsquery('simple', $1)
      order by rank desc
      limit $2`,
-    params,
+    [tsQuery, POOL_SIZE],
   );
   return rows.map(rowToCandidate);
 }
@@ -98,30 +92,35 @@ export interface RetrievalResult {
 }
 
 /**
- * Hybrid retrieval: dense (pgvector) ⊕ keyword (FTS), fused via RRF, soft-filtered to the union of
- * matched informational intents (never a hard single-topic filter — Architecture guide §5.7).
- * Degrades to keyword-only if the embedding endpoint is unavailable.
+ * Hybrid retrieval: dense (pgvector) ⊕ keyword (FTS), fused via RRF. Matched informational intents
+ * are a soft ranking boost (a 3rd RRF list), never a hard single-topic filter — a misclassified
+ * intent can still surface the right chunk instead of excluding it outright (Architecture guide
+ * §5.7). Degrades to keyword-only if the embedding endpoint is unavailable.
  */
 export async function retrieveCandidates(
   normalized: NormalizedQuery,
   informationalIntents: string[],
 ): Promise<RetrievalResult> {
-  const keywordResults = await keywordArm(normalized.expanded, informationalIntents);
+  const keywordResults = await keywordArm(normalized.expanded);
   const byId = new Map(keywordResults.map((c) => [c.id, c]));
   let denseResults: Candidate[] = [];
   let degradedToKeywordOnly = false;
 
   try {
-    denseResults = await denseArm(normalized.expanded, informationalIntents);
+    denseResults = await denseArm(normalized.expanded);
     for (const c of denseResults) byId.set(c.id, c);
   } catch (err) {
     console.error("dense retrieval failed, degrading to keyword-only:", err);
     degradedToKeywordOnly = true;
   }
 
+  const topicSet = new Set(informationalIntents);
+  const topicBoostIds = [...byId.values()].filter((c) => topicSet.has(c.topic)).map((c) => c.id);
+
   const fusedIds = reciprocalRankFusion([
     denseResults.map((c) => c.id),
     keywordResults.map((c) => c.id),
+    topicBoostIds,
   ]);
 
   return {

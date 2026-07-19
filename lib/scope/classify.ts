@@ -28,7 +28,8 @@ The five intents:
 - "procedures": how outpatient reception, examination, or treatment actually works (the process,
   not the price).
 - "hospital_info": general hospital information — departments, location, contact, policies.
-- "doctor_schedule": doctor availability or schedules.
+- "doctor_schedule": doctor availability or schedules — including "which doctors work here" /
+  roster-style questions, not just a specific doctor's timing.
 
 If the message matches ANY of the five intents, "in_scope" is true and "intents" lists every intent
 that applies (booking can co-occur with any informational intent — e.g. "is there a heart check-up
