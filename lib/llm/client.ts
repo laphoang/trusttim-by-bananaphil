@@ -2,16 +2,8 @@ import { z } from "zod";
 import { recordLlmUsage } from "../usage";
 
 /**
- * FPT AI Factory gpt-oss-20b client — one OpenAI-compatible base URL + key.
- *
- * Verified against the live endpoint (the docs' claim of a wrapping {code, message, data}
- * envelope does not match reality): the response is the standard top-level OpenAI shape. We stay
- * tolerant of an optional `.data` envelope anyway in case a future account/region wraps it.
- *
- * gpt-oss-20b is a reasoning model: its chain-of-thought comes back in `message.reasoning`, and
- * `message.content` is null until reasoning finishes. A too-small max_tokens makes it hit
- * finish_reason "length" while still reasoning, leaving content permanently null — always budget
- * enough tokens for reasoning + the actual answer.
+ * OpenAI gpt-4.1-mini client — generates answers and powers structured classifiers.
+ * Reads OPENAI_API_KEY (separate from FPT's API_KEY/API_BASE_URL, which stay for embeddings/rerank).
  */
 
 interface ChatMessage {
@@ -19,16 +11,14 @@ interface ChatMessage {
   content: string;
 }
 
-interface FptChatPayload {
+export interface ChatCompletionResponse {
   choices: Array<{
     index: number;
-    message: { role: string; content: string | null; reasoning?: string };
+    message: { role: string; content: string };
     finish_reason: string;
   }>;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
-
-export type FptChatResponse = FptChatPayload | { code: number; message: string; data: FptChatPayload };
 
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
@@ -53,9 +43,9 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   throw lastError;
 }
 
-function fptHeaders(): Record<string, string> {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API_KEY is not set");
+function authHeaders(): Record<string, string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
@@ -65,63 +55,51 @@ function fptHeaders(): Record<string, string> {
 export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
-  /** gpt-oss-20b reasoning budget — "low" for classifiers, generation can afford more. */
-  reasoningEffort?: "low" | "medium" | "high";
 }
 
 /**
- * Pure unwrap + content extraction. Exported so selfcheck.ts can verify the parsing logic without
- * a live API call. Unwraps an optional `.data` envelope, then requires non-empty `message.content`
- * — a reasoning model that ran out of tokens mid-thought leaves content null, which must surface
- * as an error (never silently return "").
+ * Content extraction. Exported so selfcheck.ts can verify the parsing logic without a live API call.
+ * Requires non-empty `message.content` — never silently return "".
  */
-export function extractChatContent(body: FptChatResponse): string {
-  const payload: FptChatPayload = "data" in body ? body.data : body;
-  const choice = payload.choices?.[0];
+export function extractChatContent(body: ChatCompletionResponse): string {
+  const choice = body.choices?.[0];
   const content = choice?.message?.content;
   if (typeof content === "string" && content.trim().length > 0) {
     return content;
   }
   throw new Error(
-    `gpt-oss-20b returned empty content (finish_reason=${choice?.finish_reason ?? "unknown"}) — ` +
-      "likely ran out of max_tokens while reasoning; raise maxTokens.",
+    `Chat API returned empty content (finish_reason=${choice?.finish_reason ?? "unknown"}). ` +
+      "Raise maxTokens or check the request.",
   );
 }
 
-function extractUsage(body: FptChatResponse) {
-  const payload: FptChatPayload = "data" in body ? body.data : body;
-  return payload.usage;
+function extractUsage(body: ChatCompletionResponse) {
+  return body.usage;
 }
 
 /** Plain chat completion — returns the assistant's text content. Used for generation. */
 export async function chat(messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
-  const baseUrl = process.env.API_BASE_URL;
   const model = process.env.LLM_MODEL;
-  if (!baseUrl || !model) throw new Error("API_BASE_URL / LLM_MODEL are not set");
+  if (!model) throw new Error("LLM_MODEL is not set");
 
-  const res = await fetchWithRetry(`${baseUrl}/v1/chat/completions`, {
+  const OPENAI_BASE_URL = "https://api.openai.com/v1";
+  const res = await fetchWithRetry(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
-    headers: fptHeaders(),
+    headers: authHeaders(),
     body: JSON.stringify({
       model,
       messages,
       temperature: options.temperature ?? 1,
       max_tokens: options.maxTokens ?? 1024,
-      top_p: 1,
-      top_k: 40,
-      presence_penalty: 0,
-      frequency_penalty: 0,
-      stream: false,
-      ...(options.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
     }),
   });
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => "");
-    throw new Error(`gpt-oss-20b chat/completions failed: HTTP ${res.status} — ${bodyText.slice(0, 500)}`);
+    throw new Error(`OpenAI chat/completions failed: HTTP ${res.status} — ${bodyText.slice(0, 500)}`);
   }
 
-  const body = (await res.json()) as FptChatResponse;
+  const body = (await res.json()) as ChatCompletionResponse;
   const content = extractChatContent(body);
   const usage = extractUsage(body);
   if (usage) recordLlmUsage(usage.prompt_tokens, usage.completion_tokens);
@@ -165,7 +143,7 @@ export async function chatJSON<T>(
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },
     ],
-    { temperature: 0.2, maxTokens: 1024, reasoningEffort: "low", ...options },
+    { temperature: 0.2, maxTokens: 1024, ...options },
   );
   const parsed = JSON.parse(extractJson(raw));
   return schema.parse(parsed);

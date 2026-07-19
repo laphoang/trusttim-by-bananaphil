@@ -72,14 +72,27 @@ account/deployment; don't assume the catalog page's display name is the API's `m
 
 ## 2. Environment variables
 
+**OpenAI:**
+
+| Variable | Purpose | Value | Read by |
+|---|---|---|---|
+| `OPENAI_API_KEY` | OpenAI API key | secret | `lib/llm/client.ts` |
+| `LLM_MODEL` | Chat/completions model name | `gpt-4.1-mini` | `lib/llm/client.ts` |
+
+**FPT AI Factory (retrieval only):**
+
 | Variable | Purpose | Value / format | Read by |
 |---|---|---|---|
-| `API_BASE_URL` | FPT AI Factory base URL, all three models | `https://mkp-api.fptcloud.com` (per `llm_api_example.md`) | `lib/llm/client.ts`, `lib/embeddings/client.ts` |
-| `API_KEY` | Bearer token for all three endpoints | secret | `lib/llm/client.ts`, `lib/embeddings/client.ts` |
-| `LLM_MODEL` | Chat/completions model name | `gpt-oss-20b` (swap target: a stronger FPT-catalog model, e.g. Qwen3/DeepSeek — Architecture guide §11) | `lib/llm/client.ts` |
+| `API_BASE_URL` | FPT embeddings + rerank base URL | `https://mkp-api.fptcloud.com` (per `llm_api_example.md`) | `lib/embeddings/client.ts` |
+| `API_KEY` | Bearer token for embeddings + rerank | secret | `lib/embeddings/client.ts` |
 | `EMBEDDING_MODEL` | Embeddings model name | `Vietnamese_Embedding` — **confirm exact casing live** (§1.3) | `lib/embeddings/client.ts` |
 | `RERANKER_MODEL` | Rerank model name | `bge-reranker-v2-m3` | `lib/embeddings/client.ts` |
 | `EMBEDDING_DIM` | pgvector column dimension | `1024` — confirmed by the `dimensions` param in the embeddings example; **reconfirm live at P0** since it's a request param, not necessarily fixed across model versions | `lib/db/schema.sql` |
+
+**Postgres/pgvector:**
+
+| Variable | Purpose | Value | Read by |
+|---|---|---|---|
 | `DATABASE_URL` | Postgres/pgvector connection string | Supabase/Neon free-tier connection string for the demo | `lib/db/*` |
 
 ---

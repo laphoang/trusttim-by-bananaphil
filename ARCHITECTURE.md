@@ -25,8 +25,10 @@ Browser (Next.js chat widget, VI)
         ▼
 /api/chat  — orchestration route handler
         │
-        ├─ FPT AI Factory (one OpenAI-compatible API, VN/JP region, pay-as-you-go)
-        │    · gpt-oss-20b            (generation + emergency/scope classifiers)
+        ├─ OpenAI (chat/completions LLM)
+        │    · gpt-4.1-mini           (generation + emergency/scope classifiers)
+        │
+        ├─ FPT AI Factory (embeddings + rerank, VN/JP region, pay-as-you-go)
         │    · vietnamese-embedding   (dense retrieval)
         │    · bge-reranker-v2-m3     (rerank)
         │
@@ -36,9 +38,9 @@ Browser (Next.js chat widget, VI)
         └─ Mock booking service — /api/booking (seed doctors/slots, handoff CTA)
 ```
 
-All model inference sits behind **one OpenAI-compatible client** pointed at FPT AI Factory
-(base URL + key) — swapping models or moving to dedicated/on-prem capacity is an env-var change,
-not a rewrite. The vector store is the one component we run ourselves.
+The LLM (`gpt-4.1-mini` on OpenAI) powers generation and classifiers. Embeddings and reranking
+run on **FPT AI Factory** (Vietnam/Japan data centers) — a Vietnamese sovereign cloud for retrieval.
+The vector store is the one component we run ourselves (pgvector on Postgres).
 
 ---
 
@@ -47,7 +49,7 @@ not a rewrite. The vector store is the one component we run ourselves.
 Order matters — safety checks run before any retrieval or generation:
 
 1. **Normalize** the query (expand VI abbreviations/slang) + minimal history.
-2. **Symptom & emergency guardrail (first).** `gpt-oss-20b` severity classifier, structured
+2. **Symptom & emergency guardrail (first).** `gpt-4.1-mini` severity classifier, structured
    output → `none | normal | serious`. `serious` → fixed safe-escalation message + mocked
    support case, skip everything else. `normal` → fixed "can't examine symptoms, please book"
    redirect + booking CTA, skip everything else (never answered medically). **Fails safe**: a
@@ -60,7 +62,7 @@ Order matters — safety checks run before any retrieval or generation:
    top-k. Degrades to keyword-only if the embed/rerank endpoints are unavailable.
 5. **Grounding gate.** No confident candidate → "I don't know" + official channels (distinct
    from the intent/scope guardrail's refusal — see guide §6.2).
-6. **Generate.** `gpt-oss-20b` answers only from the retrieved context, in Vietnamese, with
+6. **Generate.** `gpt-4.1-mini` answers only from the retrieved context, in Vietnamese, with
    citations, addressing every intent of a multi-part question.
 7. **Booking action.** If `booking` is among the matched intents, attach the appointment-creation
    link + mocked schedule *in addition to* any informational answer (or alone, skipping
@@ -78,7 +80,8 @@ Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 | **Frontend** | Next.js/React chat widget — streamed answers, citation chips, distinct "I don't know", EMERGENCY, and normal-symptom-redirect UI states. |
 | **Orchestration** | `/api/chat` route handler — runs the pipeline above. |
 | **Hybrid retrieval + KB** | Dense (FPT `vietnamese-embedding`) ⊕ keyword/FTS + structured rules → RRF fuse → rerank (FPT `bge-reranker-v2-m3`), scoped to four informational intents (`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`). |
-| **FPT AI Factory models** | `gpt-oss-20b` (generation + both classifiers), `vietnamese-embedding`, `bge-reranker-v2-m3` — one OpenAI-compatible client, VN/JP data centers. |
+| **OpenAI LLM** | `gpt-4.1-mini` — generation and both classifiers (severity + intent/scope). |
+| **FPT AI Factory** | `vietnamese-embedding` + `bge-reranker-v2-m3` — embeddings and reranking, Vietnam/Japan data centers. |
 | **pgvector / Postgres** | Single `kb_chunks` table: content, metadata, dense vector, `tsvector` — hybrid retrieval is one SQL query. |
 | **Mock booking service** | `/api/booking` — appointment-creation link + simulated schedule data, handoff to real hospital channels. |
 | **Symptom & emergency guardrail** | Own module — sole severity detector (`none`/`normal`/`serious`), fail-safe on error, raises a mocked support case on `serious`, redirects to booking on `normal`. |
@@ -92,7 +95,8 @@ Rationale/tradeoffs for each tool: [guide §4](hackathon_docs/guide/TrustTim_Arc
 ## Tech stack at a glance
 
 - **Next.js (App Router) + Vercel** — one TypeScript app, UI + API, push-to-deploy.
-- **FPT AI Factory** — `gpt-oss-20b`, `vietnamese-embedding`, `bge-reranker-v2-m3`, all pay-as-you-go, VN/JP region.
+- **OpenAI** — `gpt-4.1-mini` (generation + classifiers).
+- **FPT AI Factory** — `vietnamese-embedding`, `bge-reranker-v2-m3`, pay-as-you-go, VN/JP region.
 - **pgvector on Postgres** (Supabase/Neon free tier for the demo) — vectors + keyword FTS in one datastore.
 - **Vercel AI SDK** — streaming chat plumbing.
 - **shadcn/ui + Tailwind + v0** — fast, accessible UI.
@@ -123,7 +127,7 @@ Full detail: [guide §5](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 │  ├─ page.tsx                     # chat UI (widget)
 │  └─ api/{chat,booking,emergency}/route.ts
 ├─ lib/
-│  ├─ llm/client.ts                # FPT gpt-oss-20b (OpenAI-compatible, env-swappable)
+│  ├─ llm/client.ts                # OpenAI gpt-4.1-mini (generation + classifiers)
 │  ├─ embeddings/client.ts         # FPT vietnamese-embedding + bge-reranker-v2-m3
 │  ├─ db/{schema.sql,client.ts,setup.ts}  # pgvector: kb_chunks + indexes
 │  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,retrieve,rerank,generate}.ts

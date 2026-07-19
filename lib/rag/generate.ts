@@ -56,9 +56,7 @@ export async function generateAnswer(
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: prompt },
     ],
-    // gpt-oss-20b spends tokens reasoning before the answer — 1024 was too tight and returned
-    // empty content on longer contexts (see lib/llm/client.ts).
-    { temperature: 0.4, maxTokens: 2048, reasoningEffort: "low" },
+    { temperature: 0.4, maxTokens: 2048 },
   );
 
   return {

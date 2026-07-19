@@ -29,7 +29,7 @@ channels instead of pretending to have completed the booking itself.
 **The pipeline is safety-first and runs in a fixed order** — [`lib/chat/pipeline.ts`](../../README.md):
 
 1. **Normalize** the query with a Vietnamese synonym/abbreviation dictionary.
-2. **Symptom & emergency guardrail** — a `gpt-oss-20b` severity classifier tags the message
+2. **Symptom & emergency guardrail** — a `gpt-4.1-mini` severity classifier tags the message
    `serious` / `normal` / `none`. `serious` → fixed escalation + a mocked support-case handoff;
    `normal` → fixed "can't examine, please book" redirect. Both short-circuit the rest of the
    pipeline. It **fails safe**: a classifier error shows the safety notice, never silently
@@ -40,7 +40,7 @@ channels instead of pretending to have completed the booking itself.
    fused with Reciprocal Rank Fusion, soft-filtered to the matched intents.
 5. **Rerank + grounding gate** — `bge-reranker-v2-m3` scores candidates; no confident candidate →
    "I don't know."
-6. **Generate** — `gpt-oss-20b` produces a grounded answer with citations.
+6. **Generate** — `gpt-4.1-mini` produces a grounded answer with citations.
 7. **Booking action** — a CTA is attached whenever `booking` is a matched intent, alone or beside
    the informational answer.
 
@@ -106,7 +106,7 @@ requirement that matters most at a cardiac hospital: **recognizing when a "quest
 emergency.**
 
 TrustTim's first pipeline stage — before retrieval, before any answer — is a **three-way severity
-classifier** (`none` / `normal` / `serious`) powered by `gpt-oss-20b`:
+classifier** (`none` / `normal` / `serious`) powered by `gpt-4.1-mini`:
 
 - **`serious`** → a **fixed, doctor-authored escalation message** (call 115 / go to the nearest
   Emergency Department) plus a **mocked support-case handoff**. The LLM never free-generates in this
@@ -159,9 +159,11 @@ TrustTim is built for how real Vietnamese patients actually type, not for clean 
 Deployment readiness (requirement #6) is usually where demos are hand-wavy. TrustTim's is concrete
 and doubles as its pilot-adoption case:
 
-- **All inference runs on FPT AI Factory** (Vietnam/Japan sovereign cloud) behind one
-  OpenAI-compatible client — not a foreign vendor. For a public hospital handling citizens'
-  health-related queries, data sovereignty is not a nice-to-have.
+- **Retrieval (embeddings + reranking) runs on FPT AI Factory** (Vietnam/Japan sovereign cloud);
+  generation and classifiers run on OpenAI. For a public hospital, data-sovereignty principles are
+  applied: the most sensitive retrieval operations (vector similarity search over private patient
+  FAQs) stay within Vietnamese-controlled infrastructure; generation can leverage frontier models
+  outside that perimeter as long as queries go through them correctly sanitized.
 - **No patient PII is stored, and the service is stateless** — conversation history lives only in
   the client request. The knowledge base is public/hospital-provided content only, protected with
   Supabase row-level security.

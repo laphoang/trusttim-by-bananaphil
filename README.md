@@ -34,8 +34,10 @@ Browser (Next.js chat widget, VI)
         ▼
 /api/chat  — orchestration (lib/chat/pipeline.ts)
         │
-        ├─ FPT AI Factory (one OpenAI-compatible API, VN/JP region, pay-as-you-go)
-        │    · gpt-oss-20b            (generation + severity/intent classifiers)
+        ├─ OpenAI (chat/completions LLM)
+        │    · gpt-4.1-mini           (generation + severity/intent classifiers)
+        │
+        ├─ FPT AI Factory (embeddings + rerank, VN/JP region, pay-as-you-go)
         │    · vietnamese-embedding   (dense retrieval)
         │    · bge-reranker-v2-m3     (rerank)
         │
@@ -47,7 +49,7 @@ Browser (Next.js chat widget, VI)
 **The pipeline** (order matters — safety runs first, [full detail](ARCHITECTURE.md)):
 
 1. Normalize the query via the VI synonym/abbreviation dictionary.
-2. **Symptom & emergency guardrail** (`gpt-oss-20b` severity classifier) — `serious` → fixed
+2. **Symptom & emergency guardrail** (`gpt-4.1-mini` severity classifier) — `serious` → fixed
    escalation + mocked support case; `normal` → fixed "can't examine, please book" redirect; both
    skip everything else. **Fails safe**: a classifier error shows the safety notice, never
    silently continues.
@@ -55,7 +57,7 @@ Browser (Next.js chat widget, VI)
 4. **Hybrid retrieve** (only for informational intents): dense (pgvector) ⊕ keyword (FTS), fused
    via RRF, soft-filtered to the matched intents.
 5. **Rerank** (`bge-reranker-v2-m3`) → grounding gate — no confident candidate → "I don't know."
-6. **Generate** (`gpt-oss-20b`) grounded answer with citations.
+6. **Generate** (`gpt-4.1-mini`) grounded answer with citations.
 7. **Booking action** — attached whenever `booking` is a matched intent, alone or alongside the
    informational answer.
 
@@ -95,7 +97,7 @@ artifact for this project.
 
 ```bash
 npm install
-cp .env.example .env   # fill in API_KEY (FPT AI Factory) and DATABASE_URL (Supabase session pooler)
+cp .env.example .env   # fill in OPENAI_API_KEY, API_KEY (FPT), and DATABASE_URL (Supabase)
 npm run db:setup        # creates the pgvector extension + kb_chunks table + indexes
 npm run ingest           # embeds hackathon_docs/kb/*.md + rules.json into pgvector
 npm run dev
@@ -154,13 +156,13 @@ retrieval recall/precision, and cost/latency numbers measured against the held-o
 
 ## Privacy posture + tech stack
 
-TrustTim stores no patient PII, is stateless (history lives only in the client request), its
-knowledge base is public/hospital-provided content only, and all inference runs on **FPT AI
-Factory** (Vietnam/Japan data centers) rather than a foreign vendor.
+TrustTim stores no patient PII, is stateless (history lives only in the client request), and its
+knowledge base is public/hospital-provided content only.
 
 **Stack:** Next.js (App Router) + TypeScript, Tailwind, `pg` + pgvector on **Supabase** Postgres,
-Zod for structured-output validation, `gpt-oss-20b` + `vietnamese-embedding` + `bge-reranker-v2-m3` on FPT
-AI Factory behind one OpenAI-compatible client, Docker for on-prem readiness.
+Zod for structured-output validation, `gpt-4.1-mini` on OpenAI (generation + classifiers) and
+`vietnamese-embedding` + `bge-reranker-v2-m3` on **FPT AI Factory** (Vietnam/Japan data centers,
+retrieval only), Docker for on-prem readiness.
 
 ## Known simplifications (roadmap)
 
