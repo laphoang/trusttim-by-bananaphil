@@ -52,7 +52,26 @@ Live app: https://trusttim-by-bananaphil.vercel.app/
 
 ---
 
-## Slide 4 — Technical Implementation · *(Technical Implementation)*
+## Slide 4 — What It Covers · *(Technical, AI-Native, UX)*
+
+**Three ways to respond: answer, act, or escalate.**
+
+| Message type | What TrustTim does |
+|---|---|
+| Booking | Per-facility CTA — CS1 → Zalo, CS2 → website, + 1900 1082 hotline (no KB lookup) |
+| BHYT & pricing | Grounded, cited answer; pricing renders as a table |
+| Procedures | Grounded, cited answer (outpatient reception / exam flow) |
+| Hospital info | Grounded, cited answer (departments, location, contact, policies) |
+| Doctor schedule | Grounded, cited answer; freshness-labelled snapshot |
+| Normal symptom | Fixed "can't diagnose — please book" redirect + booking CTA |
+| Emergency symptom | Fixed 115 escalation + support-case handoff; halts immediately |
+| Off-topic / unsafe | Polite decline → hotline |
+
+*Multi-label: one message can trigger several at once (e.g. info + booking).*
+
+---
+
+## Slide 5 — Technical Implementation · *(Technical Implementation)*
 
 - **Next.js on Vercel, TypeScript throughout — live today,** not a prototype.
 - **Supabase Postgres + pgvector:** hybrid dense (Vietnamese embeddings) ⊕ keyword (full-text)
@@ -68,7 +87,7 @@ Live app: https://trusttim-by-bananaphil.vercel.app/
 
 ---
 
-## Slide 5 — AI-Native Architecture · *(AI-Native Architecture)*
+## Slide 6 — AI-Native Architecture · *(AI-Native Architecture)*
 
 **Flow:** message → **severity guardrail (fails safe)** → intent / scope → **hybrid retrieval**
 (Vietnamese embeddings ⊕ Postgres full-text search, RRF-fused) → **reranker + grounding gate** →
@@ -79,7 +98,7 @@ grounded generation + citations.
 
 ---
 
-## Slide 6 — Live Demo · *(Technical, Safety, UX)*
+## Slide 7 — Live Demo · *(Technical, Safety, UX)*
 
 > "First, watch it answer real hospital questions across every topic. Then watch what happens the
 > moment a question isn't routine."
@@ -88,19 +107,40 @@ grounded generation + citations.
 
 ---
 
-## Slide 7 — Why It's Trustworthy · *(Safety, UX)* — the payoff, the doctor's edge
+## Slide 8 — Why It's Trustworthy · *(Safety, UX)* — the payoff, the doctor's edge
 
 - Emergency taxonomy authored by a **real cardiologist on our team**, tuned for recall on the
   `serious` class.
 - **Grounding gate** → "I don't know — here's the official channel" instead of hallucinating.
 - Every answer **cites its source**; snapshot / synthetic data is explicitly labelled.
 - **Fails safe:** if the classifier errors, it escalates rather than guesses.
-- The same eval harness from Slide 4, read differently: emergency recall is the number that
+- The same eval harness from Slide 5, read differently: emergency recall is the number that
   matters most here.
 
 ---
 
-## Slide 8 — Business & Pilot Roadmap · *(Business Feasibility)* — doctor delivers
+## Slide 9 — Cost & Unit Economics · *(Business Feasibility)*
+
+**100% pay-as-you-go — every token metered, zero idle cost.**
+
+- **No fixed infrastructure:** serverless hosting + metered model APIs. Idle cost ≈ $0 — you pay
+  per message, nothing when no one is asking. No reserved GPU, no always-on server.
+- **The safety design is also a cost design:** emergency = 1 model call; booking / off-topic = a
+  fixed reply with no LLM generation — roughly a third of traffic never touches the expensive path.
+  A full grounded answer is at most 5 metered calls.
+- **Compact retrieval:** a few thousand tokens per turn vs. ~50k for naive "dump-everything" RAG.
+- **Metered rates (retrieval, FPT AI Factory):** embeddings **$0.011 / 1M tokens**, rerank
+  **$0.022 / 1M tokens**; generation billed per-token on the LLM API.
+- **Measured, not hand-waved:** the committed eval harness run cost **$0.0021 for 52 turns**
+  (`RESULTS.md`).
+- **Hospital-scale projection: low single-digit USD/day** at 2,500–3,000 conversations/day —
+  benchmarked against a real Vietnamese admissions RAG assistant at **~$2/day** for 2,000–4,000
+  conversations/day. *(Illustrative estimate, validated against measured per-call cost.)*
+- **Demo cost ≈ $0** — covered by FPT AI Factory free credits.
+
+---
+
+## Slide 10 — Business & Pilot Roadmap · *(Business Feasibility)* — doctor delivers
 
 - **Who pays:** the hospital — TrustTim deflects hotline/reception load; every FAQ it absorbs frees
   CSKH staff for the cases that need a human.

@@ -53,8 +53,8 @@ file.
 | Brief requirement | How TrustTim meets it |
 |---|---|
 | FAQ answering (BHYT, procedures, hospital info, doctor schedules) | Hybrid RAG over the curated KB — retrieve → rerank → grounded generation (`lib/rag/`, [`hackathon_docs/kb/`](../kb/)) |
-| Booking integration | Booking CTA attached whenever `booking` is a matched intent; mocked booking service behind `/api/booking` |
-| Conversational experience | Vietnamese chat widget with distinct UI states per response type (grounded answer, emergency, "I don't know", out-of-scope) |
+| Booking integration | Per-facility booking CTA attached whenever `booking` is a matched intent — CS1 (92 Trần Hưng Đạo) → the hospital's Zalo Mini App, CS2 (695 Lạc Long Quân) → the website booking page, plus the 1900 1082 hotline; mocked booking service behind `/api/booking` |
+| Conversational experience | Vietnamese chat widget with distinct UI states per response type (grounded answer, emergency, "I don't know", out-of-scope); structured data (e.g. BHYT/pricing) renders as clean tables, and citations link to the hospital's real source pages |
 | Grounded / no-hallucination, "I don't know" | Grounding gate at rerank + a distinct fallback message; every grounded answer carries its citations |
 | Emergency detection & escalation | Severity classifier runs **before everything else**; fixed doctor-authored escalation copy; fails safe on error |
 | Deployment readiness | [`Dockerfile`](../../README.md) + all model endpoints env-swappable; live on Vercel today |
@@ -136,9 +136,11 @@ project's name. TrustTim's answer to it is visible, not asserted:
 - **A reranker (`bge-reranker-v2-m3`) plus a grounding gate** means an in-scope question with no
   confident retrieved context gets **"I don't know → official channels,"** distinct from the
   out-of-scope decline. The system would rather admit ignorance than guess.
-- **Every grounded answer shows its citations**, including an honest `is_synthetic` / `freshness`
-  caveat for illustrative or time-boxed data (e.g. the doctor-schedule snapshot). The user can see
-  exactly what the answer was built from.
+- **Every grounded answer shows its citations as a link to the hospital's real source page**
+  (the internal chunk id/title stays out of the user-facing answer — logs only), including an honest
+  `is_synthetic` / `freshness` caveat for illustrative or time-boxed data (e.g. the doctor-schedule
+  snapshot). The user can see exactly what the answer was built from, and structured data such as
+  BHYT coverage and pricing renders as a clean table rather than raw text.
 
 This is the visible, demoable answer to the brief's central worry — and it directly scores the
 Safety and UX criteria that carry the most weight on this problem.
@@ -178,9 +180,11 @@ believable rather than a promise.
 ### e. It does something — not just chats
 
 The Analysis (§4) names the death-trap for this brief precisely: *"chats but doesn't actually do
-anything."* TrustTim avoids it with a **real booking handoff** — a CTA to the hospital's Website /
-Zalo / hotline channels attached to any booking-intent message. It's a workflow with an action at
-the end, not a conversation that dead-ends in text.
+anything."* TrustTim avoids it with a **real, per-facility booking handoff** — attached to any
+booking-intent message, it offers each site's own real channel: **CS1 (92 Trần Hưng Đạo) via the
+hospital's Zalo Mini App, CS2 (695 Lạc Long Quân) via the website booking page**, plus the
+1900 1082 hotline. It's a workflow with an action at the end, not a conversation that dead-ends in
+text.
 
 ### f. Built to be understood — by both readers
 
