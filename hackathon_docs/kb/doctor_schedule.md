@@ -194,3 +194,44 @@ column position (verify against source before treating as authoritative). -->
 Tư vấn khám, chữa bệnh trong giờ hành chính: 0869032338
 Website: benhvientimhanoi.vn - benhvientimhanoi.com.vn
 Fanpage: fb.com/BenhvienTimHaNoi.vn
+
+---
+
+<!--
+Derived/synthesized: this chunk re-presents doctor names already listed in the 4 schedule tables
+above (grouped by facility/specialty instead of by room/day), so a broad "which doctors work
+here" query has a real chunk to match — the 4 tables above are chunked by room, not by roster, so
+they don't lexically/semantically anchor a roster-style question on their own. No names invented;
+every doctor below appears verbatim in one of the tables above. Not exhaustive for Cơ sở 1
+cardiology (see note below) — for an exact room/day, use the tables above.
+-->
+
+```json
+{
+  "id": "doctor-schedule-roster-summary",
+  "topic": "doctor_schedule",
+  "title": "Danh sách bác sĩ đang công tác tại Bệnh viện Tim Hà Nội (tuần 13/07–19/07/2026)",
+  "keywords": [
+    "danh sách bác sĩ",
+    "có những bác sĩ nào",
+    "bác sĩ nào đang làm việc",
+    "đội ngũ bác sĩ",
+    "bệnh viện có bao nhiêu bác sĩ"
+  ],
+  "source_url": "https://benhvientimhanoi.vn/vi/chi-tiet-lich-kham/lich-lam-viec-cua-bac-sy/lich-kham-benh-cua-cac-bac-si-benh-vien-tim-ha-noi-tuan-tu-13d07d2026-19d07d2026",
+  "last_reviewed": "2026-07-18",
+  "is_synthetic": true,
+  "freshness": "snapshot for week of 2026-07-13 to 2026-07-19 — reconfirm before reuse"
+}
+```
+
+**Cơ sở 2 — 695 Lạc Long Quân, Tây Hồ — Khu khám bệnh tự nguyện:**
+BS.CKII Lê Thị Hoài Thu, ThS.BS Nguyễn Duy Chinh, TS.BS Trần Thị Linh Tú, ThS.BS Lê Thuý Ngọc, Bs Lê Thanh Nam (thứ 7).
+
+**Cơ sở 2 — Phòng khám Đa khoa (theo chuyên khoa):**
+BS Nguyễn Thanh Trà (Răng hàm mặt), BSNT. Trần Thị Quỳnh Nga (Phục hồi chức năng), ThS.Bs Linh Thế Cường (Tai mũi họng), ThS.Bs Dương Thị Thùy Nga (Nhi), ThS.Bs Nguyễn Thị Minh Hoa (Da liễu), BSCK II Nguyễn Thị Tuyết Mai (Sản phụ khoa), BSNT. Nguyễn Thị Thuận (Y học cổ truyền), ThS.BS Lại Thị Bạch Yến (Nội chung - Hô hấp), ThS.BSNT Phạm Thị Oanh (Nội chung - Cơ xương khớp), BSCKI Nguyễn Thị Huyền (Mắt).
+
+**Cơ sở 1 — 92 Trần Hưng Đạo, Hoàn Kiếm — Khoa Khám bệnh tự nguyện (chuyên khoa Tim mạch):**
+Đội ngũ đông đảo luân phiên qua các phòng khám 1–9 ở cả hai khu tự nguyện 1 và 3, gồm (không đầy đủ — xem bảng lịch chi tiết ở trên để biết phòng/ngày cụ thể): TS.BS Phạm Như Hùng, TS.BS Vũ Quỳnh Nga, TS.BS Bùi Thị Thanh Hà, TS.BS Nguyễn Xuân Tuấn, TS.BS Đinh Quang Huy, TS.BS Hoàng Văn, TS.BS Hà Mai Hương, TS.BS Trần Thị Ngọc Lan, TS.BS Nguyễn Thị Thu Thủy, TS.BS Ngô Văn Thanh, BSCKII Nguyễn Văn Thực, BSCKII Phạm Thị An, BSCKII Vũ Thị Trang, BSCKII Phạm Quang Huy, ThS.BS Nguyễn Xuân Tú, ThS.BS Nguyễn Đăng Dương, ThS.BS Nguyễn Thị Việt Nga, ThS.BS Vũ Thị Ngọc Anh, ThS.BS Nguyễn Danh Sơn, BSCKII Trần Thị Thanh Hà, ThS.BS Nguyễn Đình Hồng Phúc, BSCKI Nguyễn Trung Hiếu, BS Trần Thanh Hoa, ThS.BS Phạm Văn Tùng, ThS.BS Nguyễn Toàn Thắng, ThS.BS Trần Đắc Long, ThS.BS Nguyễn Quốc Hùng, BSCKI Đào Thị Thu Hà, ThS.BS Nguyễn Phương Liên, ThS.BS Lê Quang Huy, ThS.BS Lê Thị Thảo, ThS.BS Hoàng Minh Lợi, ThS.BS Nguyễn Thế Nam Huy, BS Nguyễn Ngọc Tân, ThS.BS Đỗ Thị Vân Anh, BS Đinh Hải Nam, ThS.BS Trần Sinh Cương, ThS.BS Lê Thế Kiên.
+
+Để biết bác sĩ trực tại phòng khám/ngày cụ thể, hoặc đặt lịch khám, quý bệnh nhân vui lòng gọi tổng đài 1900 1082.
