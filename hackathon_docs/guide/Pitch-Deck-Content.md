@@ -10,9 +10,11 @@ Feasibility 20 · UX 15 · Safety/Grounding 15 · Presentation 10. Each slide be
 criteria it targets. The team's natural edge — a real cardiologist on the team — anchors Safety +
 UX; the doctor is the lead voice on pain, business, and close.
 
-> **Before recording:** confirm the exact current model names for Slide 5 against the code / `.env`.
-> `Project-Description.md` states retrieval (embeddings + reranker) runs on FPT AI Factory and
-> generation/classifiers on OpenAI (`gpt-4.1-mini`). The slide keeps this deliberately light.
+> **Before recording:** confirm the exact current model names for Slide 6 (AI-Native Architecture)
+> against the code / `.env`. `Project-Description.md` states retrieval (embeddings + reranker) runs
+> on FPT AI Factory and generation/classifiers on OpenAI (`gpt-4.1-mini`). Slides 6 and 9 keep the
+> generation model deliberately light — the committed cost constants use FPT `gpt-oss-20b` pricing,
+> so the cost slide phrases generation cost per-token/model-agnostic rather than pinning a figure.
 
 Live app: https://trusttim-by-bananaphil.vercel.app/
 
@@ -153,7 +155,7 @@ grounded generation + citations.
 
 ---
 
-## Slide 9 — Close · *(Presentation)* — doctor closes
+## Slide 11 — Close · *(Presentation)* — doctor closes
 
 > "As a physician, I would put this in front of my patients tomorrow."
 
@@ -164,7 +166,25 @@ grounded generation + citations.
 
 ## Live-pitch trim (Round 3, 4 min + 2 min Q&A)
 
-Merge Slides 4 + 5 into one "Under the hood" slide (stack + architecture flow together); keep
-1 → 2 → 3 → 6 → 7 → 8 → 9. The live demo stays the centerpiece. Prep a Q&A cheat-sheet by judge
+Merge Slides 5 + 6 into one "Under the hood" slide (stack + architecture flow together); fold the
+Slide 4 intents detail into the live demo and the Slide 9 cost detail into the business slide; keep
+1 → 2 → 3 → 7 → 8 → 10 → 11. The live demo stays the centerpiece. Prep a Q&A cheat-sheet by judge
 archetype (domain expert → let the doctor answer; technical → the 30-sec architecture; non-technical
-→ the clean UX + "who uses this"; senior → the scale/market story).
+→ the clean UX + "who uses this"; senior → the scale/market + unit-economics story).
+
+---
+
+## Rubric coverage check (all 6 criteria, 11 slides)
+
+| Criterion (pts) | Slides |
+|---|---|
+| Technical Implementation (20) | 4, 5, 7 |
+| AI-Native Architecture (20) | 3, 4, 6 |
+| Business Feasibility (20) | 2, **9 (cost)**, 10 |
+| UX (15) | 4, 7, 8 |
+| Safety / Grounding (15) | 7, 8 |
+| Presentation (10) | 1, 11 |
+
+All six covered. The new **Cost** slide (9) strengthens Business Feasibility — the tied-top criterion
+the Scoring Guide flags as most often under-served — and the **What It Covers** slide (4) makes
+product completeness/maturity self-evident for the AI repo-reader.
