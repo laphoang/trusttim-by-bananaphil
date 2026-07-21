@@ -70,5 +70,34 @@
     "message": "Bệnh nhân cấp cứu có được hưởng BHYT không cần chuyển tuyến không?",
     "topic": "bhyt_pricing",
     "expectedChunkIds": ["rule-bhyt_coverage_emergency-6", "bhyt-coverage-outpatient-policy"]
+  },
+  {
+    "id": "f13",
+    "message": "mổ tim có đắt không",
+    "topic": "bhyt_pricing",
+    "note": "Colloquial phrasing regression case — reranker scored this ~0.18-0.27 (borderline the 0.2 grounding threshold) vs. ~0.87-0.96 for the formal 'phẫu thuật tim giá bao nhiêu' against the identical candidates, before query rewriting.",
+    "expectedChunkIds": [
+      "pdf-banggiadvkt-0179",
+      "pdf-banggiadvkt-0186",
+      "pdf-banggiadvkt-0188",
+      "pdf-banggiadvkt-0190",
+      "pdf-banggiadvkt-0191",
+      "pdf-banggiadvkt-0192",
+      "pdf-banggiadvkt-0195"
+    ]
+  },
+  {
+    "id": "f14",
+    "message": "Đi khám ở đây thì đăng ký kiểu gì, có phức tạp không?",
+    "topic": "procedures",
+    "note": "Colloquial rephrasing of f04/f05.",
+    "expectedChunkIds": ["outpatient-reception-flow"]
+  },
+  {
+    "id": "f15",
+    "message": "Phòng 505 hôm nào có bác sĩ khám vậy?",
+    "topic": "doctor_schedule",
+    "note": "Colloquial rephrasing of f09.",
+    "expectedChunkIds": ["doctor-schedule-cs2-voluntary-exam-rooms"]
   }
 ]
