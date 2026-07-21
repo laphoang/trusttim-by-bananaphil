@@ -9,9 +9,7 @@ Two tiers:
 
 Run: python test_parse_pdfs.py
 """
-import numpy as np
-
-from ocr import segment_lines
+from ocr import build_vision_messages
 from parse_pdfs import build_sidecar, content_hash, extract_pdf, is_native_text, slugify
 
 
@@ -39,33 +37,32 @@ def test_content_hash() -> None:
 def test_build_sidecar() -> None:
     md = "# Tiêu đề\n\nNội dung."
     s = build_sidecar("doc.pdf", "Tiêu đề", md, page_count=3, ocr_used=True,
-                       source_pdf_sha256="deadbeef", s3_markdown_key="cleaned-pdf/doc.md")
+                       source_pdf_sha256="deadbeef", s3_markdown_key="cleaned-pdf/doc.md",
+                       ocr_method="vision-llm:gpt-4.1-mini")
     assert set(s) == {
         "source_pdf", "title", "extracted_at", "content_sha256", "content_chars",
-        "page_count", "ocr_used", "source_pdf_sha256", "s3_markdown_key",
+        "page_count", "ocr_used", "ocr_method", "source_pdf_sha256", "s3_markdown_key",
     }
     assert s["content_sha256"] == content_hash(md)
     assert s["content_chars"] == len(md)
     assert s["page_count"] == 3
     assert s["ocr_used"] is True
+    assert s["ocr_method"] == "vision-llm:gpt-4.1-mini"
     assert s["source_pdf_sha256"] == "deadbeef"
+    # native path leaves ocr_method None
+    assert build_sidecar("d.pdf", "", md, 1, False, "x", "k.md")["ocr_method"] is None
     print("✅ build_sidecar")
 
 
-def test_segment_lines() -> None:
-    # Synthetic 100x200 white page with two dark horizontal bands (simulated text lines).
-    img = np.full((100, 200), 255, dtype=np.uint8)
-    img[10:20, 20:180] = 0   # line 1
-    img[40:50, 20:180] = 0   # line 2
-    # row 70-75 has a tiny dark speck, below min_dark_ratio -> should NOT count as a line
-    img[70:75, 20:22] = 0
-
-    bands = segment_lines(img, dark_threshold=128, min_dark_ratio=0.02, min_gap=3, min_line_height=5)
-    assert len(bands) == 2, f"expected 2 line bands, got {bands}"
-    (s1, e1), (s2, e2) = bands
-    assert 9 <= s1 <= 11 and 19 <= e1 <= 21
-    assert 39 <= s2 <= 41 and 49 <= e2 <= 51
-    print("✅ segment_lines")
+def test_build_vision_messages() -> None:
+    msgs = build_vision_messages("QUJD")  # fake base64
+    assert msgs[0]["role"] == "system" and "Markdown" in msgs[0]["content"]
+    user = msgs[1]
+    assert user["role"] == "user"
+    img_block = next(b for b in user["content"] if b["type"] == "image_url")
+    assert img_block["image_url"]["url"] == "data:image/png;base64,QUJD"
+    assert img_block["image_url"]["detail"] == "high"
+    print("✅ build_vision_messages")
 
 
 def test_extract_pdf_native() -> None:
@@ -89,10 +86,10 @@ def test_extract_pdf_native() -> None:
 
 def main() -> None:
     test_is_native_text()
+    test_build_vision_messages()
     test_slugify()
     test_content_hash()
     test_build_sidecar()
-    test_segment_lines()
     test_extract_pdf_native()
     print("\nAll pdf_ingest self-checks passed.")
 

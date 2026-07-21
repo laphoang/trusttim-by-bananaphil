@@ -58,6 +58,7 @@ def build_sidecar(
     ocr_used: bool,
     source_pdf_sha256: str,
     s3_markdown_key: str,
+    ocr_method: str | None = None,
 ) -> dict:
     """Metadata sidecar, shaped like the crawler's for consistency across the raw-content corpus."""
     return {
@@ -68,6 +69,7 @@ def build_sidecar(
         "content_chars": len(markdown),
         "page_count": page_count,
         "ocr_used": ocr_used,
+        "ocr_method": ocr_method,
         "source_pdf_sha256": source_pdf_sha256,
         "s3_markdown_key": s3_markdown_key,
     }
@@ -167,9 +169,10 @@ class S3Sink(Sink):
 
 # --- PDF extraction -----------------------------------------------------------
 def extract_pdf(
-    pdf_bytes: bytes, min_chars_per_page: float = MIN_CHARS_PER_PAGE
+    pdf_bytes: bytes, min_chars_per_page: float = MIN_CHARS_PER_PAGE, vision_client=None
 ) -> Tuple[str, int, bool, str]:
-    """Returns (markdown, page_count, ocr_used, title)."""
+    """Returns (markdown, page_count, ocr_used, title). Native-text PDFs go through pymupdf4llm;
+    scanned PDFs are OCR'd page-by-page with the vision-LLM (see ocr.py)."""
     import fitz
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -184,19 +187,15 @@ def extract_pdf(
             markdown = pymupdf4llm.to_markdown(doc)
             ocr_used = False
         else:
-            import io
+            from ocr import get_client, ocr_page_png
 
-            from PIL import Image
-
-            from ocr import get_predictor, ocr_page_image
-
-            predictor = get_predictor()
+            client = vision_client or get_client()
             parts = []
             for i, page in enumerate(doc):
-                pix = page.get_pixmap(dpi=200)
-                image = Image.open(io.BytesIO(pix.tobytes("png")))
-                text = ocr_page_image(image, predictor)
+                png = page.get_pixmap(dpi=150).tobytes("png")
+                text = ocr_page_png(png, client)
                 parts.append(f"<!-- page {i + 1} -->\n\n{text}")
+                print(f"    page {i + 1}/{page_count} ocr'd")
             markdown = "\n\n".join(parts)
             ocr_used = True
     finally:
@@ -206,7 +205,13 @@ def extract_pdf(
 
 
 # --- orchestration ------------------------------------------------------------
-def run(source: Source, sink: Sink, output_prefix: str, min_chars_per_page: float) -> None:
+def run(
+    source: Source,
+    sink: Sink,
+    output_prefix: str,
+    min_chars_per_page: float,
+    force: bool = False,
+) -> None:
     manifest: List[dict] = []
     processed = skipped = 0
 
@@ -217,7 +222,7 @@ def run(source: Source, sink: Sink, output_prefix: str, min_chars_per_page: floa
         pdf_hash = content_hash(pdf_bytes)
 
         existing = sink.get_existing_sidecar(json_key)
-        if existing and existing.get("source_pdf_sha256") == pdf_hash:
+        if not force and existing and existing.get("source_pdf_sha256") == pdf_hash:
             print(f"  skip   (unchanged) {name}")
             manifest.append(existing)
             skipped += 1
@@ -229,7 +234,10 @@ def run(source: Source, sink: Sink, output_prefix: str, min_chars_per_page: floa
             print(f"  fail   {name}: {err}")
             continue
 
-        sidecar = build_sidecar(name, title, markdown, page_count, ocr_used, pdf_hash, md_key)
+        ocr_method = "vision-llm:gpt-4.1-mini" if ocr_used else None
+        sidecar = build_sidecar(
+            name, title, markdown, page_count, ocr_used, pdf_hash, md_key, ocr_method
+        )
         sink.put(md_key, markdown.encode("utf-8"), "text/markdown; charset=utf-8")
         sink.put(
             json_key,
@@ -253,6 +261,8 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="read/write ./out/ instead of S3")
     ap.add_argument("--local-dir", default="sample_pdfs", help="local PDF dir for --dry-run")
     ap.add_argument("--min-chars-per-page", type=float, default=MIN_CHARS_PER_PAGE)
+    ap.add_argument("--force", action="store_true",
+                    help="re-process even if an up-to-date sidecar exists (e.g. after an OCR change)")
     args = ap.parse_args()
 
     source: Source
@@ -264,7 +274,7 @@ def main() -> None:
         source = S3Source(S3_BUCKET, S3_INPUT_PREFIX)
         sink = S3Sink(S3_BUCKET)
 
-    run(source, sink, S3_OUTPUT_PREFIX, args.min_chars_per_page)
+    run(source, sink, S3_OUTPUT_PREFIX, args.min_chars_per_page, args.force)
 
 
 if __name__ == "__main__":
