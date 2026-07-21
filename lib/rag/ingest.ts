@@ -11,8 +11,14 @@ loadEnv();
 
 const KB_DIR = path.join(process.cwd(), "hackathon_docs", "kb");
 
+// bhyt_pricing.md is intentionally excluded: that topic is now covered by the auto-chunked PDF
+// price-table chunks (real hospital price-list PDFs, too large to hand-curate), ingested
+// separately by kb_ingest/ into the same kb_chunks table. The file itself stays in hackathon_docs/kb/
+// as documentation/audit trail.
+const SKIP_FILES = new Set(["bhyt_pricing.md"]);
+
 function loadMarkdownChunks(): KbChunk[] {
-  const files = readdirSync(KB_DIR).filter((f) => f.endsWith(".md"));
+  const files = readdirSync(KB_DIR).filter((f) => f.endsWith(".md") && !SKIP_FILES.has(f));
   const chunks: KbChunk[] = [];
   for (const file of files) {
     const raw = readFileSync(path.join(KB_DIR, file), "utf-8");
