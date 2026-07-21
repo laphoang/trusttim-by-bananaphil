@@ -7,13 +7,42 @@ dependencies = [
     "pymupdf>=1.24,<2",
     "pymupdf4llm>=0.0.5,<1",
     "vietocr>=0.3.13,<1",
+    "torch>=2.0,<3",         # from the CPU index below (see tool.uv.sources) — no CUDA on this box
+    "torchvision>=0.15,<1",  # required by vietocr's vgg backbone/transformer at inference
     "opencv-python-headless>=4.9,<5",
     "pillow>=10.4,<12",  # 10.2.0 has no cp313 wheel, fails building from sdist
     "boto3>=1.34,<2",
     "numpy>=1.26,<3",
+    "setuptools<81",  # vietocr/gdown need pkg_resources; newer setuptools releases dropped it
 ]
 
-[tool.uv]
-# vietocr hard-pins pillow==10.2.0 (no cp313 wheel). Its actual Pillow usage is basic Image
-# open/crop/convert, unaffected by later Pillow releases, so force the newer version instead.
-override-dependencies = ["pillow>=10.4,<12"]
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+# vietocr hard-declares training-only deps (imgaug, albumentations, scikit-image) that drag in
+# scipy/sklearn/skimage/matplotlib/full-opencv (~450 MB) but are never touched on the inference
+# path (verified: imported only in trainer.py / loader/aug.py / create_dataset.py; all __init__.py
+# are empty). It also never declares torch/torchvision/numpy/pyyaml/requests/tqdm even though it
+# imports them. Override its metadata to list only what inference actually needs.
+[[tool.uv.dependency-metadata]]
+name = "vietocr"
+version = "0.3.13"
+requires-dist = [
+    "torch",
+    "torchvision",
+    "numpy",
+    "pillow>=10.4,<12",
+    "einops",
+    "gdown",
+    "pyyaml",
+    "requests",
+    "tqdm",
+    "lmdb",
+    "prefetch-generator",
+]

@@ -25,10 +25,16 @@ Uses [uv](https://docs.astral.sh/uv/).
 
 ```bash
 cd pdf_ingest
-uv sync   # NOTE: pulls CPU-only torch via vietocr — a much larger/slower install than crawler/'s;
-          # still prebuilt wheels, no compile step.
+uv sync   # ~1.1 GB venv, dominated by torch. No special flags needed.
 cp .env.example .env   # fill in AWS creds + S3_BUCKET
 ```
+
+Notes on the install (all handled in `pyproject.toml`, nothing extra to run):
+- **torch/torchvision come from the PyTorch CPU index** (`download.pytorch.org/whl/cpu`) — this box
+  has no GPU, so the default CUDA wheels would add ~2 GB of unused nvidia libraries.
+- **vietocr's training-only deps are stripped** via a `[[tool.uv.dependency-metadata]]` override
+  (imgaug/albumentations/scikit-image + their scipy/sklearn/skimage/matplotlib/opencv fan-out, ~450
+  MB, never used on the inference path). torch's ~700 MB C++ core is the irreducible floor from here.
 
 VietOCR downloads its pretrained weights on first real OCR call (one-time, needs network — same
 idea as the crawler's `crawl4ai-setup`). No system package needed (no Tesseract).
