@@ -4,8 +4,9 @@ Scanned/image-only PDFs are OCR'd page-by-page with a vision-LLM (see ocr.py) af
 whole-document sparse-text check (average extractable chars/page below MIN_CHARS_PER_PAGE) — pages
 within one PDF are OCR'd concurrently (bounded by MAX_CONCURRENT_OCR).
 
-Scope: this stops at markdown+sidecar in storage. Chunking/ingest into pgvector stays the existing
-TypeScript path (lib/rag/ingest.ts), fed manually. See README.md.
+Scope: this stops at markdown+sidecar in storage. Chunking of this output into KB-ready chunks is
+the standalone `chunking/` tool (independent, S3-only coupling); pgvector ingest from those chunks
+is a separate, later step. See README.md.
 
 S3 convention: reads every PDF under s3://$S3_BUCKET/$S3_INPUT_PREFIX/, writes markdown + sidecar
 under s3://$S3_BUCKET/$S3_OUTPUT_PREFIX/. Re-runs are idempotent: a PDF whose sidecar already

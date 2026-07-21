@@ -4,13 +4,15 @@ Parses hospital PDFs — native-text or scanned/image-only — into **markdown +
 sidecar** for later chunking into the knowledge base. Standalone Python process, isolated from the
 Next.js app and from the `crawler/` (crawl4ai) tool; own deps, own env.
 
-Stops at markdown+sidecar in storage — chunking/ingest into pgvector stays the existing TypeScript
-path (`lib/rag/ingest.ts`), fed manually.
+Stops at markdown+sidecar in storage — chunking of this output into KB-ready chunks is the
+standalone [`chunking/`](../chunking/README.md) tool; pgvector ingest from those chunks is a
+separate, later step.
 
 ## How it decides native vs. OCR
 
 Per PDF, whole-document (not per-page): average extractable characters per page is compared to
 `MIN_CHARS_PER_PAGE` (default 40).
+
 - **Native** (digital PDF): converted via `pymupdf4llm` straight to markdown — preserves headings
   and tables far better than plain text-joining. No LLM cost.
 - **Scanned/image-only**: each page is rendered to an image and OCR'd with a **vision-LLM**
