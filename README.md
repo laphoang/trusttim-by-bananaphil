@@ -30,7 +30,7 @@ booking, never hallucinates, escalates real emergencies, and is deployment-ready
 
 ```
 Browser (Next.js chat widget, VI)
-        │
+        │  chat message + history
         ▼
 /api/chat  — orchestration (lib/chat/pipeline.ts)
         │
@@ -49,16 +49,18 @@ Browser (Next.js chat widget, VI)
 **The pipeline** (order matters — safety runs first, [full detail](ARCHITECTURE.md)):
 
 1. Normalize the query via the VI synonym/abbreviation dictionary.
-2. **Symptom & emergency guardrail** (`gpt-4.1-mini` severity classifier) — `serious` → fixed
+2. **Summarize prior conversation turns** into short context (skipped on the first message) —
+   feeds the guardrails, retrieval, and generation steps below.
+3. **Symptom & emergency guardrail** (`gpt-4.1-mini` severity classifier) — `serious` → fixed
    escalation + mocked support case; `normal` → fixed "can't examine, please book" redirect; both
    skip everything else. **Fails safe**: a classifier error shows the safety notice, never
    silently continues.
-3. **Intent & scope guardrail** — multi-label over 5 intents; no match → fixed default response.
-4. **Hybrid retrieve** (only for informational intents): dense (pgvector) ⊕ keyword (FTS), fused
+4. **Intent & scope guardrail** — multi-label over 5 intents; no match → fixed default response.
+5. **Hybrid retrieve** (only for informational intents): dense (pgvector) ⊕ keyword (FTS), fused
    via RRF, soft-filtered to the matched intents.
-5. **Rerank** (`bge-reranker-v2-m3`) → grounding gate — no confident candidate → "I don't know."
-6. **Generate** (`gpt-4.1-mini`) grounded answer with citations.
-7. **Booking action** — attached whenever `booking` is a matched intent, alone or alongside the
+6. **Rerank** (`bge-reranker-v2-m3`) → grounding gate — no confident candidate → "I don't know."
+7. **Generate** (`gpt-4.1-mini`) grounded answer with citations.
+8. **Booking action** — attached whenever `booking` is a matched intent, alone or alongside the
    informational answer.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full map and
@@ -83,6 +85,9 @@ supervise the model, but the model is what makes the routing and answering possi
   ([`lib/emergency/classify.ts`](lib/emergency/classify.ts)).
 - Intent & scope guardrail — multi-label LLM classifier with a deterministic dictionary
   pass-through for the clear-cut cases ([`lib/scope/classify.ts`](lib/scope/classify.ts)).
+- Conversation-history summarization — condenses prior turns into short context for follow-up
+  messages, fails soft (never blocks the safety guardrail) on error
+  ([`lib/chat/summarize.ts`](lib/chat/summarize.ts)).
 
 **To build:** this repository's `hackathon_docs/guide/` documents the architecture and
 implementation spec that was handed to the coding agent (Cursor) to build the app in
@@ -114,7 +119,7 @@ Open http://localhost:3000.
 ### Checks
 
 ```bash
-npm run selfcheck   # offline: RRF fusion, normalization, envelope unwrap, Zod, fail-safe path
+npm run selfcheck   # offline: RRF fusion, normalization, envelope unwrap, Zod, fail-safe path, history-summary fail-soft path
 npm run eval          # live: emergency recall, scope accuracy, retrieval recall/precision, cost — writes RESULTS.md
 ```
 
@@ -169,8 +174,6 @@ retrieval only), Docker for on-prem readiness.
 - Structured BHYT/procedure rules are ingested as retrievable KB chunks rather than a bespoke
   slot-filling rule engine (`lib/rag/rules.ts`) — the spec doesn't define how to extract rule
   conditions from free text, and the reranker already generalizes over prose and rules alike.
-- No multi-turn conversation memory yet — each turn is classified/retrieved independently. The
-  architecture guide's "minimal history" design is the next increment.
 - FPT chat/completions calls are non-streaming (the response envelope + SSE shape are
   under-documented — see `hackathon_docs/guide/TrustTim_Implementation-Spec.md` §7); the UI does a
   client-side typewriter reveal instead of real token streaming.

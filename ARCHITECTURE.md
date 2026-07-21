@@ -49,25 +49,30 @@ The vector store is the one component we run ourselves (pgvector on Postgres).
 Order matters — safety checks run before any retrieval or generation:
 
 1. **Normalize** the query (expand VI abbreviations/slang) + minimal history.
-2. **Symptom & emergency guardrail (first).** `gpt-4.1-mini` severity classifier, structured
+2. **Summarize prior conversation turns** (if any) into short context via one LLM call — skipped
+   entirely on the first message (no cost). Feeds the severity/intent classifiers, the retrieval
+   query, and generation below (Architecture guide's "minimal history" design). **Fails soft, not
+   safe**: an error here never blocks or delays the safety guardrail that follows — degrades to no
+   conversation context, exactly like retrieval's keyword-only and rerank's fusion-order fallbacks.
+3. **Symptom & emergency guardrail (first).** `gpt-4.1-mini` severity classifier, structured
    output → `none | normal | serious`. `serious` → fixed safe-escalation message + mocked
    support case, skip everything else. `normal` → fixed "can't examine symptoms, please book"
    redirect + booking CTA, skip everything else (never answered medically). **Fails safe**: a
    classifier error also shows the safety notice, never silently continues.
-3. **Intent & scope guardrail.** Multi-label classifier over five intents —
+4. **Intent & scope guardrail.** Multi-label classifier over five intents —
    `booking | bhyt_pricing | procedures | hospital_info | doctor_schedule` — plus in-scope check.
    No matched intent → fixed default response, stop (no retrieval, no generation).
-4. **Retrieve** (only if an informational intent is present). Hybrid: dense (embed + pgvector) ⊕
+5. **Retrieve** (only if an informational intent is present). Hybrid: dense (embed + pgvector) ⊕
    keyword/FTS + structured rules, fused via RRF, then reranked (`bge-reranker-v2-m3`) to a small
    top-k. Degrades to keyword-only if the embed/rerank endpoints are unavailable.
-5. **Grounding gate.** No confident candidate → "I don't know" + official channels (distinct
+6. **Grounding gate.** No confident candidate → "I don't know" + official channels (distinct
    from the intent/scope guardrail's refusal — see guide §6.2).
-6. **Generate.** `gpt-4.1-mini` answers only from the retrieved context, in Vietnamese, with
+7. **Generate.** `gpt-4.1-mini` answers only from the retrieved context, in Vietnamese, with
    citations, addressing every intent of a multi-part question.
-7. **Booking action.** If `booking` is among the matched intents, attach the appointment-creation
+8. **Booking action.** If `booking` is among the matched intents, attach the appointment-creation
    link + mocked schedule *in addition to* any informational answer (or alone, skipping
    retrieval, if booking is the only intent).
-8. **Stream + log.**
+9. **Stream + log.**
 
 Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md#3-the-chat-pipeline-the-heart-of-the-system).
 
@@ -79,6 +84,7 @@ Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 |---|---|
 | **Frontend** | Next.js/React chat widget — streamed answers, citation chips, distinct "I don't know", EMERGENCY, and normal-symptom-redirect UI states. |
 | **Orchestration** | `/api/chat` route handler — runs the pipeline above. |
+| **Conversation history summarization** | Own module — condenses prior turns into short context for this turn's classifiers/retrieval/generation; fails soft, never blocks the safety guardrail. |
 | **Hybrid retrieval + KB** | Dense (FPT `vietnamese-embedding`) ⊕ keyword/FTS + structured rules → RRF fuse → rerank (FPT `bge-reranker-v2-m3`), scoped to four informational intents (`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`). |
 | **OpenAI LLM** | `gpt-4.1-mini` — generation and both classifiers (severity + intent/scope). |
 | **FPT AI Factory** | `vietnamese-embedding` + `bge-reranker-v2-m3` — embeddings and reranking, Vietnam/Japan data centers. |
@@ -128,14 +134,14 @@ Full detail: [guide §5](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 │  └─ api/{chat,booking,emergency}/route.ts
 ├─ lib/
 │  ├─ llm/client.ts                # OpenAI gpt-4.1-mini (generation + classifiers)
-│  ├─ prompt/{severity-classifier,intent-classifier,generate-answer}.ts  # all LLM system prompts, one file each
+│  ├─ prompt/{severity-classifier,intent-classifier,generate-answer,summarize-history}.ts  # all LLM system prompts, one file each
 │  ├─ embeddings/client.ts         # FPT vietnamese-embedding + bge-reranker-v2-m3
 │  ├─ db/{schema.sql,client.ts,setup.ts}  # pgvector: kb_chunks + indexes
 │  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,retrieve,rerank,generate}.ts
 │  ├─ emergency/{classify,responses,case}.ts
 │  ├─ scope/{classify,responses}.ts
 │  ├─ booking/mock-data.ts
-│  ├─ chat/pipeline.ts             # the ordered pipeline, called by app/api/chat/route.ts
+│  ├─ chat/{pipeline,summarize}.ts # the ordered pipeline + history summarization, called by app/api/chat/route.ts
 │  └─ usage.ts                     # token/cost tracker for the eval report
 ├─ hackathon_docs/kb/*.md|*.json   # curated chunks + rules.json + dictionary.json (KB source)
 ├─ data/eval/*.json                # emergency / scope / faq golden sets
@@ -164,6 +170,9 @@ These are load-bearing — don't break them when implementing:
   we don't have that information").
 - **Escalate no further than needed.** Prompting + RAG only — no fine-tuning, no multi-step
   agents; there's no behavior gap that justifies either.
+- **History summarization fails soft, never fails safe.** An error condensing prior turns never
+  blocks or delays the severity guardrail; it degrades to no conversation context, exactly like
+  retrieval's keyword-only and rerank's fusion-order fallbacks.
 - **All inference stays on FPT AI Factory** (Vietnamese sovereign cloud, VN/JP), behind one
   OpenAI-compatible client — model/endpoint swaps are an env-var change.
 - **The product is not the model.** The guardrails, citations, "I don't know" behavior, and

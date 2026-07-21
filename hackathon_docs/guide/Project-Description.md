@@ -214,8 +214,6 @@ feature, and they match the README's own "Known simplifications" exactly:
 - **Non-streaming FPT calls** — the response envelope + SSE shape are under-documented, so the UI
   does a client-side typewriter reveal instead of real token streaming. *Next:* real streaming once
   the SSE contract is confirmed.
-- **No multi-turn memory yet** — each turn is classified and retrieved independently. *Next:* the
-  architecture guide's "minimal history" design.
 - **Structured rules as retrievable chunks** — BHYT/procedure rules are ingested as KB chunks rather
   than a bespoke slot-filling engine, because the reranker already generalizes over prose and rules
   alike. *Next:* a dedicated rule engine only if evals show retrieval falling short on rule lookups.
