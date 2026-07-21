@@ -11,11 +11,16 @@ import { normalizeQuery } from "../rag/normalize";
 import { retrieveCandidates } from "../rag/retrieve";
 import { rerankCandidates, RELEVANCE_THRESHOLD } from "../rag/rerank";
 import { generateAnswer, type Citation } from "../rag/generate";
+import { summarizeHistory, type HistoryTurn } from "./summarize";
 import { SEVERITY_CLASSIFIER_PROMPT } from "../prompt/severity-classifier";
 import { INTENT_CLASSIFIER_PROMPT } from "../prompt/intent-classifier";
 import { GENERATE_ANSWER_PROMPT } from "../prompt/generate-answer";
+import { SUMMARIZE_HISTORY_PROMPT } from "../prompt/summarize-history";
+
+export type { HistoryTurn };
 
 const CHUNK_LOG_PREVIEW_LENGTH = 200;
+const MAX_HISTORY_TURNS = 6;
 
 function createStepLogger() {
   const reqId = Math.random().toString(36).slice(2, 8);
@@ -77,28 +82,50 @@ function respond(
  * then intent & scope, then hybrid retrieval + rerank + grounding gate + generation, then the
  * booking action attached independently of the informational answer.
  */
-export async function runChatPipeline(userMessage: string): Promise<ChatResult> {
+export async function runChatPipeline(
+  userMessage: string,
+  history: HistoryTurn[] = [],
+): Promise<ChatResult> {
   const startedAt = Date.now();
   const log = createStepLogger();
   const normalized = normalizeQuery(userMessage);
-  log("Input received", { userMessage, normalized });
+  log("Input received", { userMessage, normalized, historyTurnsReceived: history.length });
+
+  // 1b. Summarize prior turns into short context (fails soft — never blocks the safety guardrail
+  // below; skipped entirely on a first message, so there's no cost/latency on a fresh session).
+  const trimmedHistory = history.slice(-MAX_HISTORY_TURNS);
+  let conversationSummary = "";
+  if (trimmedHistory.length > 0) {
+    try {
+      conversationSummary = await summarizeHistory(trimmedHistory);
+    } catch (err) {
+      console.error("history summarization failed — continuing without conversation context:", err);
+    }
+  }
+  log("Conversation history summary", {
+    turnsConsidered: trimmedHistory.length,
+    systemPrompt: trimmedHistory.length > 0 ? SUMMARIZE_HISTORY_PROMPT : undefined,
+    summary: conversationSummary,
+  });
 
   // 1. Symptom & emergency guardrail — runs before anything else, fails safe on error.
   let severity: "none" | "normal" | "serious";
   let matchedSignals: string[] = [];
   try {
-    const verdict = await classifySeverity(userMessage);
+    const verdict = await classifySeverity(userMessage, conversationSummary || undefined);
     severity = verdict.severity;
     matchedSignals = verdict.matched_signals;
     log("Severity classification", {
       systemPrompt: SEVERITY_CLASSIFIER_PROMPT,
       userMessage,
+      conversationSummary,
       result: verdict,
     });
   } catch (err) {
     log("Severity classification FAILED — fail-safe", {
       systemPrompt: SEVERITY_CLASSIFIER_PROMPT,
       userMessage,
+      conversationSummary,
       error: String(err),
     });
     console.error("severity classifier failed — failing safe:", err);
@@ -128,19 +155,21 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
   let intents: string[];
   const usedDictionaryPassThrough = normalized.matchedIntents.length > 0;
   try {
-    const verdict = await classifyIntent(userMessage, normalized);
+    const verdict = await classifyIntent(userMessage, normalized, conversationSummary || undefined);
     inScope = verdict.in_scope;
     intents = verdict.intents;
     log("Intent & scope classification", {
       source: usedDictionaryPassThrough ? "dictionary pass-through (no LLM call)" : "LLM classifier",
       systemPrompt: usedDictionaryPassThrough ? undefined : INTENT_CLASSIFIER_PROMPT,
       userMessage,
+      conversationSummary,
       result: verdict,
     });
   } catch (err) {
     log("Intent & scope classification FAILED — biasing toward answering", {
       systemPrompt: INTENT_CLASSIFIER_PROMPT,
       userMessage,
+      conversationSummary,
       error: String(err),
     });
     console.error("intent classifier failed — biasing toward answering:", err);
@@ -167,9 +196,18 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
   }
 
   // 4. Hybrid retrieve (soft topic filter = union of matched informational intents) + rerank.
-  const retrieval = await retrieveCandidates(normalized, informationalIntents);
+  // Fold the conversation summary into the query so a topic-less follow-up ("giá bao nhiêu?") can
+  // still retrieve the chunks the prior turn already established as relevant.
+  const retrievalQuery = conversationSummary
+    ? `${normalized.expanded} ${conversationSummary}`
+    : normalized.expanded;
+  const retrieval = await retrieveCandidates(
+    { ...normalized, expanded: retrievalQuery },
+    informationalIntents,
+  );
   log("Retrieval", {
-    query: normalized.expanded,
+    query: retrievalQuery,
+    conversationSummary,
     informationalIntents,
     degradedToKeywordOnly: retrieval.degradedToKeywordOnly,
     chunksRetrieved: retrieval.candidates.map((c) => ({
@@ -217,7 +255,7 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
   }
 
   // 6. Generate + 7. attach booking CTA alongside the informational answer if also requested.
-  const generated = await generateAnswer(userMessage, reranked.candidates);
+  const generated = await generateAnswer(userMessage, reranked.candidates, conversationSummary || undefined);
   log("Generation prompt sent to LLM", {
     systemPrompt: GENERATE_ANSWER_PROMPT,
     prompt: generated.promptSent,

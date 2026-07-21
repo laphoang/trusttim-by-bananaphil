@@ -12,6 +12,12 @@ export type SeverityClassification = z.infer<typeof SeverityClassification>;
  * The sole severity detector (Architecture guide §6.1) — no keyword pre-screen, one clear
  * detection path. Callers MUST fail safe on error/timeout (never silently continue to RAG).
  */
-export async function classifySeverity(userMessage: string): Promise<SeverityClassification> {
-  return chatJSON(SEVERITY_CLASSIFIER_PROMPT, userMessage, SeverityClassification, { temperature: 0 });
+export async function classifySeverity(
+  userMessage: string,
+  conversationSummary?: string,
+): Promise<SeverityClassification> {
+  const userPrompt = conversationSummary
+    ? `Bối cảnh cuộc trò chuyện trước đó:\n${conversationSummary}\n\nTin nhắn hiện tại của bệnh nhân:\n${userMessage}`
+    : userMessage;
+  return chatJSON(SEVERITY_CLASSIFIER_PROMPT, userPrompt, SeverityClassification, { temperature: 0 });
 }

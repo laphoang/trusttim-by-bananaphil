@@ -242,6 +242,7 @@ export default function ChatPage() {
     setInput("");
     setSending(true);
 
+    const history = messages.slice(-6).map((m) => ({ role: m.role, text: m.text }));
     const userMsg: DisplayMessage = { id: crypto.randomUUID(), role: "user", text };
     setMessages((prev) => [...prev, userMsg]);
 
@@ -249,7 +250,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, history }),
       });
       const data: ChatApiResult = await res.json();
       setMessages((prev) => [

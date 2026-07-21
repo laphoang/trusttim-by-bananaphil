@@ -26,9 +26,13 @@ export type IntentClassification = z.infer<typeof IntentClassification>;
 export async function classifyIntent(
   userMessage: string,
   normalized: NormalizedQuery,
+  conversationSummary?: string,
 ): Promise<IntentClassification> {
   if (normalized.matchedIntents.length > 0) {
     return { in_scope: true, intents: normalized.matchedIntents as Intent[] };
   }
-  return chatJSON(INTENT_CLASSIFIER_PROMPT, userMessage, IntentClassification, { temperature: 0.2 });
+  const userPrompt = conversationSummary
+    ? `Bối cảnh cuộc trò chuyện trước đó:\n${conversationSummary}\n\nTin nhắn hiện tại của bệnh nhân:\n${userMessage}`
+    : userMessage;
+  return chatJSON(INTENT_CLASSIFIER_PROMPT, userPrompt, IntentClassification, { temperature: 0.2 });
 }

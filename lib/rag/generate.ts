@@ -39,8 +39,11 @@ function formatContext(candidates: Candidate[]): string {
 export async function generateAnswer(
   userMessage: string,
   candidates: Candidate[],
+  conversationSummary?: string,
 ): Promise<GeneratedAnswer> {
-  const prompt = `CONTEXT:\n${formatContext(candidates)}\n\nUSER QUESTION:\n${userMessage}`;
+  const prompt = `${
+    conversationSummary ? `CONVERSATION SO FAR:\n${conversationSummary}\n\n` : ""
+  }CONTEXT:\n${formatContext(candidates)}\n\nUSER QUESTION:\n${userMessage}`;
   const answer = await chat(
     [
       { role: "system", content: GENERATE_ANSWER_PROMPT },

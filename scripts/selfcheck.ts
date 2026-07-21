@@ -84,6 +84,28 @@ async function main() {
     console.log("✅ fail-safe path (classifier error never silently proceeds)");
   }
 
+  // 6. History summarization fails soft: with no credentials, summarizing prior turns must NOT
+  // throw uncaught — it should degrade to no conversation context and the pipeline should still
+  // reach (and correctly hit) the severity classifier's own fail-safe path, same as with no history.
+  {
+    const savedLlmModel = process.env.LLM_MODEL;
+    const savedOpenaiKey = process.env.OPENAI_API_KEY;
+    delete process.env.LLM_MODEL;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      const result = await runChatPipeline("tôi đang đau ngực", [
+        { role: "user", text: "Tôi muốn hỏi về giá khám tim mạch" },
+        { role: "assistant", text: "Chi phí khám tim mạch dao động tuỳ gói khám..." },
+      ]);
+      assert.equal(result.responseType, "classifier_failsafe");
+      assert.equal(result.message, CLASSIFIER_FAILSAFE_MESSAGE);
+    } finally {
+      if (savedLlmModel) process.env.LLM_MODEL = savedLlmModel;
+      if (savedOpenaiKey) process.env.OPENAI_API_KEY = savedOpenaiKey;
+    }
+    console.log("✅ history summarization fails soft (never blocks the safety guardrail)");
+  }
+
   console.log("\nAll self-checks passed.");
 }
 
