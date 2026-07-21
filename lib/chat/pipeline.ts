@@ -8,12 +8,14 @@ import {
 import { classifyIntent } from "../scope/classify";
 import { BOOKING_ONLY_MESSAGE, GROUNDING_GATE_MESSAGE, OUT_OF_SCOPE_MESSAGE } from "../scope/responses";
 import { normalizeQuery } from "../rag/normalize";
+import { rewriteQuery } from "../rag/rewrite";
 import { retrieveCandidates } from "../rag/retrieve";
 import { rerankCandidates, RELEVANCE_THRESHOLD } from "../rag/rerank";
 import { generateAnswer, type Citation } from "../rag/generate";
 import { summarizeHistory, type HistoryTurn } from "./summarize";
 import { SEVERITY_CLASSIFIER_PROMPT } from "../prompt/severity-classifier";
 import { INTENT_CLASSIFIER_PROMPT } from "../prompt/intent-classifier";
+import { QUERY_REWRITE_PROMPT } from "../prompt/query-rewrite";
 import { GENERATE_ANSWER_PROMPT } from "../prompt/generate-answer";
 import { SUMMARIZE_HISTORY_PROMPT } from "../prompt/summarize-history";
 
@@ -46,6 +48,7 @@ export interface ChatDebug {
   matchedSignals?: string[];
   inScope?: boolean;
   intents?: string[];
+  queryRewriteFailed?: boolean;
   degradedToKeywordOnly?: boolean;
   degradedToFusionOrder?: boolean;
   latencyMs: number;
@@ -195,12 +198,33 @@ export async function runChatPipeline(
     );
   }
 
+  // 3b. Rewrite the query into formal Vietnamese before retrieval — the reranker (and, to a lesser
+  // extent, the retrieval arms) responds far better to standard medical/administrative terminology
+  // than to colloquial phrasing (e.g. "mổ tim có đắt không" vs. "phẫu thuật tim giá bao nhiêu").
+  // Fails soft: on error, fall back to exactly today's behavior (dictionary-expanded [+ summary] for
+  // retrieval, raw message for rerank).
+  const rewritten = await rewriteQuery(userMessage, normalized.expanded, conversationSummary || undefined).catch(
+    (err) => {
+      console.error("query rewrite failed — using dictionary-expanded query:", err);
+      return null;
+    },
+  );
+  log("Query rewrite", {
+    systemPrompt: QUERY_REWRITE_PROMPT,
+    userMessage,
+    dictionaryExpanded: normalized.expanded,
+    conversationSummary,
+    rewritten,
+    fellBack: rewritten === null,
+  });
+
   // 4. Hybrid retrieve (soft topic filter = union of matched informational intents) + rerank.
-  // Fold the conversation summary into the query so a topic-less follow-up ("giá bao nhiêu?") can
-  // still retrieve the chunks the prior turn already established as relevant.
-  const retrievalQuery = conversationSummary
-    ? `${normalized.expanded} ${conversationSummary}`
-    : normalized.expanded;
+  // Fold the conversation summary into the fallback query so a topic-less follow-up ("giá bao
+  // nhiêu?") can still retrieve the chunks the prior turn already established as relevant — the
+  // rewrite step above already folds it in when it succeeds.
+  const retrievalQuery =
+    rewritten ?? (conversationSummary ? `${normalized.expanded} ${conversationSummary}` : normalized.expanded);
+  const rerankQuery = rewritten ?? normalized.original;
   const retrieval = await retrieveCandidates(
     { ...normalized, expanded: retrievalQuery },
     informationalIntents,
@@ -224,9 +248,9 @@ export async function runChatPipeline(
     })),
   });
 
-  const reranked = await rerankCandidates(normalized.original, retrieval.candidates);
+  const reranked = await rerankCandidates(rerankQuery, retrieval.candidates);
   log("Rerank", {
-    query: normalized.original,
+    query: rerankQuery,
     relevanceThreshold: RELEVANCE_THRESHOLD,
     scored: reranked.scored,
     grounded: reranked.grounded,
@@ -238,6 +262,7 @@ export async function runChatPipeline(
     severity,
     inScope,
     intents,
+    queryRewriteFailed: rewritten === null,
     degradedToKeywordOnly: retrieval.degradedToKeywordOnly,
     degradedToFusionOrder: reranked.degradedToFusionOrder,
     latencyMs: 0,

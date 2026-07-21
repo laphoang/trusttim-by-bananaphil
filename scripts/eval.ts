@@ -7,6 +7,7 @@ loadEnv();
 import { classifySeverity } from "../lib/emergency/classify";
 import { classifyIntent } from "../lib/scope/classify";
 import { normalizeQuery } from "../lib/rag/normalize";
+import { rewriteQuery } from "../lib/rag/rewrite";
 import { retrieveCandidates } from "../lib/rag/retrieve";
 import { rerankCandidates } from "../lib/rag/rerank";
 import { runChatPipeline } from "../lib/chat/pipeline";
@@ -116,12 +117,18 @@ async function evalRetrieval() {
 
   for (const c of cases) {
     const normalized = normalizeQuery(c.message);
-    const retrieval = await retrieveCandidates(normalized, [c.topic]);
+    // Mirror the chat pipeline: rewrite into formal Vietnamese before retrieval/rerank, falling
+    // back to the dictionary-expanded/raw query on error (same convention as pipeline.ts).
+    const rewritten = await rewriteQuery(c.message, normalized.expanded).catch(() => null);
+    const retrievalQuery = rewritten ?? normalized.expanded;
+    const rerankQuery = rewritten ?? c.message;
+
+    const retrieval = await retrieveCandidates({ ...normalized, expanded: retrievalQuery }, [c.topic]);
     const fusedIds = retrieval.candidates.map((cand) => cand.id);
     const fusedHit = c.expectedChunkIds.some((id) => fusedIds.includes(id));
     if (fusedHit) fusedHits++;
 
-    const reranked = await rerankCandidates(c.message, retrieval.candidates);
+    const reranked = await rerankCandidates(rerankQuery, retrieval.candidates);
     const rerankIds = reranked.candidates.map((cand) => cand.id);
     const rerankHit = c.expectedChunkIds.some((id) => rerankIds.includes(id));
     if (rerankHit) rerankHits++;
