@@ -9,8 +9,23 @@ import { classifyIntent } from "../scope/classify";
 import { BOOKING_ONLY_MESSAGE, GROUNDING_GATE_MESSAGE, OUT_OF_SCOPE_MESSAGE } from "../scope/responses";
 import { normalizeQuery } from "../rag/normalize";
 import { retrieveCandidates } from "../rag/retrieve";
-import { rerankCandidates } from "../rag/rerank";
+import { rerankCandidates, RELEVANCE_THRESHOLD } from "../rag/rerank";
 import { generateAnswer, type Citation } from "../rag/generate";
+import { SEVERITY_CLASSIFIER_PROMPT } from "../prompt/severity-classifier";
+import { INTENT_CLASSIFIER_PROMPT } from "../prompt/intent-classifier";
+import { GENERATE_ANSWER_PROMPT } from "../prompt/generate-answer";
+
+const CHUNK_LOG_PREVIEW_LENGTH = 200;
+
+function createStepLogger() {
+  const reqId = Math.random().toString(36).slice(2, 8);
+  let n = 0;
+  return function logStep(label: string, data: unknown) {
+    n += 1;
+    console.log(`[chat:${reqId}] Step ${n} — ${label}`);
+    console.log(JSON.stringify(data, null, 2));
+  };
+}
 
 export type ChatResponseType =
   | "emergency"
@@ -64,7 +79,9 @@ function respond(
  */
 export async function runChatPipeline(userMessage: string): Promise<ChatResult> {
   const startedAt = Date.now();
+  const log = createStepLogger();
   const normalized = normalizeQuery(userMessage);
+  log("Input received", { userMessage, normalized });
 
   // 1. Symptom & emergency guardrail — runs before anything else, fails safe on error.
   let severity: "none" | "normal" | "serious";
@@ -73,7 +90,17 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
     const verdict = await classifySeverity(userMessage);
     severity = verdict.severity;
     matchedSignals = verdict.matched_signals;
+    log("Severity classification", {
+      systemPrompt: SEVERITY_CLASSIFIER_PROMPT,
+      userMessage,
+      result: verdict,
+    });
   } catch (err) {
+    log("Severity classification FAILED — fail-safe", {
+      systemPrompt: SEVERITY_CLASSIFIER_PROMPT,
+      userMessage,
+      error: String(err),
+    });
     console.error("severity classifier failed — failing safe:", err);
     return respond("classifier_failsafe", CLASSIFIER_FAILSAFE_MESSAGE, startedAt);
   }
@@ -99,11 +126,23 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
   // the classifier itself is unavailable, rather than wrongly turning away a real patient.
   let inScope: boolean;
   let intents: string[];
+  const usedDictionaryPassThrough = normalized.matchedIntents.length > 0;
   try {
     const verdict = await classifyIntent(userMessage, normalized);
     inScope = verdict.in_scope;
     intents = verdict.intents;
+    log("Intent & scope classification", {
+      source: usedDictionaryPassThrough ? "dictionary pass-through (no LLM call)" : "LLM classifier",
+      systemPrompt: usedDictionaryPassThrough ? undefined : INTENT_CLASSIFIER_PROMPT,
+      userMessage,
+      result: verdict,
+    });
   } catch (err) {
+    log("Intent & scope classification FAILED — biasing toward answering", {
+      systemPrompt: INTENT_CLASSIFIER_PROMPT,
+      userMessage,
+      error: String(err),
+    });
     console.error("intent classifier failed — biasing toward answering:", err);
     inScope = normalized.matchedIntents.length > 0;
     intents = normalized.matchedIntents;
@@ -129,7 +168,33 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
 
   // 4. Hybrid retrieve (soft topic filter = union of matched informational intents) + rerank.
   const retrieval = await retrieveCandidates(normalized, informationalIntents);
+  log("Retrieval", {
+    query: normalized.expanded,
+    informationalIntents,
+    degradedToKeywordOnly: retrieval.degradedToKeywordOnly,
+    chunksRetrieved: retrieval.candidates.map((c) => ({
+      id: c.id,
+      topic: c.topic,
+      title: c.title,
+      sourceUrl: c.sourceUrl,
+      isSynthetic: c.isSynthetic,
+      freshness: c.freshness,
+      contentPreview:
+        c.content.length > CHUNK_LOG_PREVIEW_LENGTH
+          ? `${c.content.slice(0, CHUNK_LOG_PREVIEW_LENGTH)}…`
+          : c.content,
+    })),
+  });
+
   const reranked = await rerankCandidates(normalized.original, retrieval.candidates);
+  log("Rerank", {
+    query: normalized.original,
+    relevanceThreshold: RELEVANCE_THRESHOLD,
+    scored: reranked.scored,
+    grounded: reranked.grounded,
+    degradedToFusionOrder: reranked.degradedToFusionOrder,
+    passedCandidateIds: reranked.candidates.map((c) => c.id),
+  });
 
   const debugExtra: ChatDebug = {
     severity,
@@ -153,6 +218,14 @@ export async function runChatPipeline(userMessage: string): Promise<ChatResult> 
 
   // 6. Generate + 7. attach booking CTA alongside the informational answer if also requested.
   const generated = await generateAnswer(userMessage, reranked.candidates);
+  log("Generation prompt sent to LLM", {
+    systemPrompt: GENERATE_ANSWER_PROMPT,
+    prompt: generated.promptSent,
+  });
+  log("LLM response received", {
+    answer: generated.answer,
+    citations: generated.citations,
+  });
   return respond(
     "grounded_answer",
     generated.answer,

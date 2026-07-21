@@ -12,6 +12,7 @@ export interface Citation {
 export interface GeneratedAnswer {
   answer: string;
   citations: Citation[];
+  promptSent: string;
 }
 
 /** LLM output nominally avoids Markdown (see GENERATE_ANSWER_PROMPT) but doesn't always comply — strip it. */
@@ -56,5 +57,6 @@ export async function generateAnswer(
       isSynthetic: c.isSynthetic,
       freshness: c.freshness,
     })),
+    promptSent: prompt,
   };
 }

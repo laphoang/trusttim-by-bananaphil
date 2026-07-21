@@ -3,12 +3,14 @@ import type { Candidate } from "./retrieve";
 
 const TOP_K = 5;
 // Tunable via the eval harness (Architecture guide §9b) against faq-cases.json.
-const RELEVANCE_THRESHOLD = 0.2;
+export const RELEVANCE_THRESHOLD = 0.2;
 
 export interface RerankedResult {
   candidates: Candidate[];
   grounded: boolean;
   degradedToFusionOrder: boolean;
+  /** Every candidate the reranker scored (empty on the degraded/fallback path — no real scores). */
+  scored: { id: string; title: string | null; relevanceScore: number }[];
 }
 
 /**
@@ -21,7 +23,7 @@ export async function rerankCandidates(
   candidates: Candidate[],
 ): Promise<RerankedResult> {
   if (candidates.length === 0) {
-    return { candidates: [], grounded: false, degradedToFusionOrder: false };
+    return { candidates: [], grounded: false, degradedToFusionOrder: false, scored: [] };
   }
 
   try {
@@ -33,7 +35,12 @@ export async function rerankCandidates(
     const top = results
       .filter((r) => r.relevanceScore >= RELEVANCE_THRESHOLD)
       .map((r) => candidates[r.index]);
-    return { candidates: top, grounded, degradedToFusionOrder: false };
+    const scored = results.map((r) => ({
+      id: candidates[r.index].id,
+      title: candidates[r.index].title,
+      relevanceScore: r.relevanceScore,
+    }));
+    return { candidates: top, grounded, degradedToFusionOrder: false, scored };
   } catch (err) {
     console.error("rerank failed, degrading to fusion order:", err);
     // ponytail: without the reranker's relevance score we have no real confidence signal — the
@@ -43,6 +50,7 @@ export async function rerankCandidates(
       candidates: candidates.slice(0, TOP_K),
       grounded: true,
       degradedToFusionOrder: true,
+      scored: [],
     };
   }
 }
