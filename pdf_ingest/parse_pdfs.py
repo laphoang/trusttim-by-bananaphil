@@ -1,7 +1,8 @@
 """Parse PDFs (native or scanned/image-only) into markdown + metadata sidecars for later KB
 chunking. Native-text PDFs are converted via pymupdf4llm (Markdown, tables/headings preserved).
-Scanned/image-only PDFs are OCR'd with VietOCR (see ocr.py) after a whole-document sparse-text
-check (average extractable chars/page below MIN_CHARS_PER_PAGE).
+Scanned/image-only PDFs are OCR'd page-by-page with a vision-LLM (see ocr.py) after a
+whole-document sparse-text check (average extractable chars/page below MIN_CHARS_PER_PAGE) — pages
+within one PDF are OCR'd concurrently (bounded by MAX_CONCURRENT_OCR).
 
 Scope: this stops at markdown+sidecar in storage. Chunking/ingest into pgvector stays the existing
 TypeScript path (lib/rag/ingest.ts), fed manually. See README.md.
@@ -10,13 +11,14 @@ S3 convention: reads every PDF under s3://$S3_BUCKET/$S3_INPUT_PREFIX/, writes m
 under s3://$S3_BUCKET/$S3_OUTPUT_PREFIX/. Re-runs are idempotent: a PDF whose sidecar already
 records a matching source_pdf_sha256 is skipped (OCR is the expensive step, avoid redoing it).
 
-Heavy deps (fitz, pymupdf4llm, vietocr/torch, cv2) are imported lazily inside the functions that
-use them so the pure helpers below stay importable offline (test_parse_pdfs.py needs none of them
-for its offline-only assertions).
+Heavy deps (fitz, pymupdf4llm, openai) are imported lazily inside the functions that use them so
+the pure helpers below stay importable offline (test_parse_pdfs.py needs none of them for its
+offline-only assertions).
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import json
 import os
@@ -31,6 +33,8 @@ S3_BUCKET = os.environ.get("S3_BUCKET", "")
 S3_INPUT_PREFIX = os.environ.get("S3_INPUT_PREFIX", "raw-pdf").strip("/")
 S3_OUTPUT_PREFIX = os.environ.get("S3_OUTPUT_PREFIX", "cleaned-pdf").strip("/")
 MIN_CHARS_PER_PAGE = float(os.environ.get("MIN_CHARS_PER_PAGE", "40"))
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4.1-mini")
+MAX_CONCURRENT_OCR = int(os.environ.get("MAX_CONCURRENT_OCR", "5"))
 
 
 # --- pure helpers (no I/O, unit-tested in test_parse_pdfs.py) ---------------
@@ -167,12 +171,30 @@ class S3Sink(Sink):
         return json.loads(body)
 
 
+async def _ocr_pages_async(pngs: List[bytes], model: str) -> List[str]:
+    """OCR a PDF's pages concurrently (bounded by MAX_CONCURRENT_OCR). Order is preserved —
+    asyncio.gather returns results in the same order as the input coroutines, regardless of
+    completion order."""
+    from ocr import get_async_client, ocr_page_png_async
+
+    client = get_async_client()
+    sem = asyncio.Semaphore(MAX_CONCURRENT_OCR)
+
+    async def bound_ocr(i: int, png: bytes) -> str:
+        async with sem:
+            text = await ocr_page_png_async(png, client, model)
+            print(f"    page {i + 1}/{len(pngs)} ocr'd")
+            return text
+
+    return await asyncio.gather(*(bound_ocr(i, png) for i, png in enumerate(pngs)))
+
+
 # --- PDF extraction -----------------------------------------------------------
 def extract_pdf(
-    pdf_bytes: bytes, min_chars_per_page: float = MIN_CHARS_PER_PAGE, vision_client=None
+    pdf_bytes: bytes, min_chars_per_page: float = MIN_CHARS_PER_PAGE
 ) -> Tuple[str, int, bool, str]:
     """Returns (markdown, page_count, ocr_used, title). Native-text PDFs go through pymupdf4llm;
-    scanned PDFs are OCR'd page-by-page with the vision-LLM (see ocr.py)."""
+    scanned PDFs are OCR'd concurrently, page-by-page, with the vision-LLM (see ocr.py)."""
     import fitz
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -187,15 +209,9 @@ def extract_pdf(
             markdown = pymupdf4llm.to_markdown(doc)
             ocr_used = False
         else:
-            from ocr import get_client, ocr_page_png
-
-            client = vision_client or get_client()
-            parts = []
-            for i, page in enumerate(doc):
-                png = page.get_pixmap(dpi=150).tobytes("png")
-                text = ocr_page_png(png, client)
-                parts.append(f"<!-- page {i + 1} -->\n\n{text}")
-                print(f"    page {i + 1}/{page_count} ocr'd")
+            pngs = [page.get_pixmap(dpi=150).tobytes("png") for page in doc]
+            texts = asyncio.run(_ocr_pages_async(pngs, LLM_MODEL))
+            parts = [f"<!-- page {i + 1} -->\n\n{t}" for i, t in enumerate(texts)]
             markdown = "\n\n".join(parts)
             ocr_used = True
     finally:

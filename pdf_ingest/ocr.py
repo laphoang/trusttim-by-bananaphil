@@ -10,6 +10,7 @@ client is imported lazily so the pure helpers stay importable offline (test need
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 
@@ -73,3 +74,39 @@ def ocr_page_png(png_bytes: bytes, client=None, model: str = _MODEL_DEFAULT) -> 
         temperature=0,
     )
     return (resp.choices[0].message.content or "").strip()
+
+
+# --- async OpenAI call (for concurrent page OCR — see parse_pdfs.py) -------
+_async_client = None
+
+
+def get_async_client():
+    """Lazily construct and cache an AsyncOpenAI client from OPENAI_API_KEY."""
+    global _async_client
+    if _async_client is None:
+        from openai import AsyncOpenAI
+
+        if not os.environ.get("OPENAI_API_KEY"):
+            raise SystemExit("OPENAI_API_KEY is not set (needed for scanned-PDF OCR).")
+        _async_client = AsyncOpenAI()
+    return _async_client
+
+
+async def ocr_page_png_async(png_bytes: bytes, client, model: str = _MODEL_DEFAULT) -> str:
+    """Async OCR of one page image, with a small retry for transient errors (concurrency raises
+    the odds of hitting a per-minute rate limit on some page among many in flight)."""
+    png_b64 = base64.b64encode(png_bytes).decode("ascii")
+    delay = 1.0
+    for attempt in range(3):
+        try:
+            resp = await client.chat.completions.create(
+                model=model,
+                messages=build_vision_messages(png_b64),
+                temperature=0,
+            )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception:
+            if attempt == 2:
+                raise
+            await asyncio.sleep(delay)
+            delay *= 2
