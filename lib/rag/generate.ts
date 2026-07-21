@@ -1,17 +1,6 @@
 import { chat } from "../llm/client";
 import type { Candidate } from "./retrieve";
-
-const SYSTEM_PROMPT = `You are TrustTim, the information assistant for Hanoi Heart Hospital (Bệnh viện Tim Hà Nội).
-Answer only using the CONTEXT provided below, in Vietnamese. If the question has multiple parts,
-address every part, combining facts from all relevant sources in the context. Never mention
-document titles, chunk IDs, or source labels inside your answer — use the context to inform the
-answer, but write it as plain prose the patient can read on its own. If the CONTEXT covers some
-parts of the question but not others, answer what you can and direct the user to the hotline 1900 1082
-for the rest — never guess or fill gaps from general knowledge. You never give medical, diagnostic,
-or treatment advice, even if asked directly — redirect any such question to booking an appointment.
-Write in plain conversational text, not Markdown — no "**bold**", no "#" headings, no "*" bullet
-markers. For lists, write each item as a plain line starting with "1)", "2)", etc., or as a short
-sentence.`;
+import { GENERATE_ANSWER_PROMPT } from "../prompt/generate-answer";
 
 export interface Citation {
   title: string | null;
@@ -25,7 +14,7 @@ export interface GeneratedAnswer {
   citations: Citation[];
 }
 
-/** LLM output nominally avoids Markdown (see SYSTEM_PROMPT) but doesn't always comply — strip it. */
+/** LLM output nominally avoids Markdown (see GENERATE_ANSWER_PROMPT) but doesn't always comply — strip it. */
 function stripMarkdown(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, "$1") // **bold**
@@ -53,7 +42,7 @@ export async function generateAnswer(
   const prompt = `CONTEXT:\n${formatContext(candidates)}\n\nUSER QUESTION:\n${userMessage}`;
   const answer = await chat(
     [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: GENERATE_ANSWER_PROMPT },
       { role: "user", content: prompt },
     ],
     { temperature: 0.4, maxTokens: 2048 },

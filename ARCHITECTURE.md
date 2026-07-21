@@ -128,6 +128,7 @@ Full detail: [guide §5](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 │  └─ api/{chat,booking,emergency}/route.ts
 ├─ lib/
 │  ├─ llm/client.ts                # OpenAI gpt-4.1-mini (generation + classifiers)
+│  ├─ prompt/{severity-classifier,intent-classifier,generate-answer}.ts  # all LLM system prompts, one file each
 │  ├─ embeddings/client.ts         # FPT vietnamese-embedding + bge-reranker-v2-m3
 │  ├─ db/{schema.sql,client.ts,setup.ts}  # pgvector: kb_chunks + indexes
 │  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,retrieve,rerank,generate}.ts
