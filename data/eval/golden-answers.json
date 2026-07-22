@@ -1,0 +1,61 @@
+[
+  {
+    "id": "g01",
+    "question": "Thẻ BHYT mức hưởng 100% khi khám ngoại trú tự đến không đúng tuyến được thanh toán bao nhiêu phần trăm?",
+    "topic": "bhyt_pricing",
+    "relevantChunkIds": ["rule-bhyt_coverage_outpatient_self_referral-0"],
+    "groundTruthAnswer": "Đối với người bệnh khám ngoại trú tự đến, không đúng tuyến, thẻ BHYT có mức hưởng 100% (mã 1, 2, 5) được Quỹ BHYT thanh toán 50% chi phí thuộc phạm vi được hưởng."
+  },
+  {
+    "id": "g02",
+    "question": "Giá khám theo yêu cầu mức 1 ở cơ sở 1 là bao nhiêu?",
+    "topic": "bhyt_pricing",
+    "relevantChunkIds": ["pdf-banggiadvktyc-0005"],
+    "groundTruthAnswer": "Khám theo yêu cầu mức 1 tại Cơ sở 1 có giá dịch vụ y tế là 500.000 VNĐ, trong đó giá khám bệnh là 200.000 VNĐ và giá dịch vụ theo yêu cầu là 300.000 VNĐ."
+  },
+  {
+    "id": "g03",
+    "question": "BHYT chi trả tối đa cho một ngày giường hồi sức tích cực là bao nhiêu?",
+    "topic": "bhyt_pricing",
+    "relevantChunkIds": ["pdf-banggiabhyt-0006"],
+    "groundTruthAnswer": "BHYT chi trả tối đa cho một ngày giường Hồi sức tích cực là 786.300 VNĐ.",
+    "note": "Chunk id fixed after a live-DB check during eval harness verification: hackathon_docs/kb/bhyt_pricing.md's hand-authored chunk ids (bhyt-coverage-outpatient-policy, on-demand-exam-pricing-table, bhyt-max-reimbursement-table) are deliberately skipped at ingest (lib/rag/ingest.ts) — superseded by these PDF-derived chunks, which carry the same figures."
+  },
+  {
+    "id": "g04",
+    "question": "Quy trình khám bệnh ngoại trú gồm những bước nào?",
+    "topic": "procedures",
+    "relevantChunkIds": ["outpatient-reception-flow"],
+    "groundTruthAnswer": "Quy trình gồm: (1) đăng ký khám tại quầy tư vấn hoặc lấy số tự động, (2) xuất trình giấy tờ (CCCD, BHYT, giấy chuyển viện...), (3) thanh toán phí khám tại quầy kế toán, (4) đo sinh hiệu (dấu hiệu sinh tồn, chiều cao, cân nặng), (5) khám bác sĩ và làm cận lâm sàng nếu cần, (6) bác sĩ kết luận và kê đơn hoặc hẹn tái khám/nhập viện/chuyển tuyến, (7) hoàn tất thủ tục nhập viện hoặc nhận hướng dẫn tái khám, (8) nhận thuốc tại quầy."
+  },
+  {
+    "id": "g05",
+    "question": "Số điện thoại tổng đài của bệnh viện là gì?",
+    "topic": "hospital_info",
+    "relevantChunkIds": ["hospital-contact-numbers"],
+    "groundTruthAnswer": "Tổng đài tư vấn khám, chữa bệnh 24/24h của Bệnh viện Tim Hà Nội là 1900 1082."
+  },
+  {
+    "id": "g06",
+    "question": "Muốn đặt lịch khám thì cần đặt trước bao lâu?",
+    "topic": "hospital_info",
+    "relevantChunkIds": ["booking-policy-and-channels"],
+    "groundTruthAnswer": "Quý vị nên đặt lịch khám trước ít nhất 24 giờ so với giờ dự định khám, qua Zalo, website, hoặc tổng đài 1900 1082. Lịch hẹn chỉ có giá trị sau khi bệnh viện xác nhận."
+  },
+  {
+    "id": "g07",
+    "question": "Phòng khám số 306 tại cơ sở 2 do bác sĩ nào phụ trách vào thứ 2?",
+    "topic": "doctor_schedule",
+    "relevantChunkIds": ["doctor-schedule-cs2-voluntary-exam-rooms"],
+    "groundTruthAnswer": "Phòng khám số 306 tại Cơ sở 2 (khu khám bệnh tự nguyện) do BS.CKII Lê Thị Hoài Thu phụ trách vào thứ 2, theo lịch tuần 13/07–19/07/2026.",
+    "note": "Freshness caveat: this is a weekly rotating schedule snapshot, not a permanent fact — see the chunk's `freshness` field."
+  },
+  {
+    "id": "g08",
+    "question": "Đi khám ở đây thì đăng ký kiểu gì, có phức tạp không?",
+    "topic": "procedures",
+    "relevantChunkIds": ["outpatient-reception-flow"],
+    "groundTruthAnswer": "Không phức tạp: đăng ký tại quầy tư vấn (nếu đã đặt lịch) hoặc lấy số tự động, xuất trình giấy tờ cần thiết, thanh toán phí khám, đo sinh hiệu, sau đó vào khám bác sĩ và làm cận lâm sàng nếu cần.",
+    "note": "Colloquial rephrasing of g04 — same expected chunk, tests whether informal Vietnamese still retrieves/scores correctly after query rewrite (mirrors faq-cases.json's f14 regression case)."
+  }
+]

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
 import { loadEnv } from "../lib/env";
 
@@ -10,6 +10,7 @@ import { normalizeQuery } from "../lib/rag/normalize";
 import { rewriteQuery } from "../lib/rag/rewrite";
 import { retrieveCandidates } from "../lib/rag/retrieve";
 import { rerankCandidates } from "../lib/rag/rerank";
+import { generateAnswer } from "../lib/rag/generate";
 import { runChatPipeline } from "../lib/chat/pipeline";
 import { estimateCostUsd, getUsage, resetUsage } from "../lib/usage";
 import { getPool } from "../lib/db/client";
@@ -145,6 +146,62 @@ async function evalRetrieval() {
   };
 }
 
+interface GoldenCase {
+  id: string;
+  question: string;
+  topic: string;
+  relevantChunkIds: string[];
+  groundTruthAnswer: string;
+  note?: string;
+}
+
+/**
+ * Runs the real pipeline stages (same chain as evalRetrieval) plus generation, and dumps one JSON
+ * trace per golden case to data/eval/runs/latest.jsonl. Feeds rag_eval/ (Python/RAGAS), which has
+ * no way to get chunk ids/context/scores out of the chat route by design (see ARCHITECTURE.md).
+ */
+async function dumpRuns() {
+  const cases = readJson<GoldenCase[]>("golden-answers.json");
+  const outDir = path.join(process.cwd(), "data", "eval", "runs");
+  mkdirSync(outDir, { recursive: true });
+  const lines: string[] = [];
+
+  for (const c of cases) {
+    const normalized = normalizeQuery(c.question);
+    const rewritten = await rewriteQuery(c.question, normalized.expanded).catch(() => null);
+    const retrievalQuery = rewritten ?? normalized.expanded;
+    const rerankQuery = rewritten ?? c.question;
+
+    const retrieval = await retrieveCandidates({ ...normalized, expanded: retrievalQuery }, [c.topic]);
+    const reranked = await rerankCandidates(rerankQuery, retrieval.candidates);
+    const generated = await generateAnswer(rerankQuery, reranked.candidates);
+
+    lines.push(
+      JSON.stringify({
+        id: c.id,
+        question: c.question,
+        topic: c.topic,
+        groundTruthAnswer: c.groundTruthAnswer,
+        relevantChunkIds: c.relevantChunkIds,
+        retrievedIds: retrieval.candidates.map((cand) => cand.id),
+        rerankedIds: reranked.candidates.map((cand) => cand.id),
+        rerankedScored: reranked.scored,
+        contexts: reranked.candidates.map((cand) => cand.content),
+        answer: generated.answer,
+        citations: generated.citations,
+        grounded: reranked.grounded,
+        degradedToKeywordOnly: retrieval.degradedToKeywordOnly,
+        degradedToFusionOrder: reranked.degradedToFusionOrder,
+      }),
+    );
+    console.log(`dumped ${c.id}`);
+  }
+
+  writeFileSync(path.join(outDir, "latest.jsonl"), lines.join("\n") + "\n");
+  console.log(`Wrote ${cases.length} traces to data/eval/runs/latest.jsonl`);
+  await getPool().end();
+}
+
 function missingEnvVars(): string[] {
   return ["API_BASE_URL", "API_KEY", "LLM_MODEL", "EMBEDDING_MODEL", "RERANKER_MODEL", "DATABASE_URL"].filter(
     (v) => !process.env[v],
@@ -152,6 +209,13 @@ function missingEnvVars(): string[] {
 }
 
 async function main() {
+  if (process.argv.includes("--dump")) {
+    const missing = missingEnvVars();
+    if (missing.length) throw new Error(`Missing env vars: ${missing.join(", ")}`);
+    await dumpRuns();
+    return;
+  }
+
   const missing = missingEnvVars();
   if (missing.length) {
     const stub = `# TrustTim — Eval Results

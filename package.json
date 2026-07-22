@@ -11,6 +11,7 @@
     "db:setup": "tsx lib/db/setup.ts",
     "ingest": "tsx lib/rag/ingest.ts",
     "eval": "tsx scripts/eval.ts",
+    "eval:dump": "tsx scripts/eval.ts --dump",
     "selfcheck": "tsx scripts/selfcheck.ts"
   },
   "dependencies": {

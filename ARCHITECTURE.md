@@ -26,7 +26,7 @@ Browser (Next.js chat widget, VI)
 /api/chat  — orchestration route handler
         │
         ├─ OpenAI (chat/completions LLM)
-        │    · gpt-4.1-mini           (generation + emergency/scope classifiers)
+        │    · gpt-4.1-mini           (generation + emergency/scope classifiers + query rewrite)
         │
         ├─ FPT AI Factory (embeddings + rerank, VN/JP region, pay-as-you-go)
         │    · vietnamese-embedding   (dense retrieval)
@@ -38,7 +38,7 @@ Browser (Next.js chat widget, VI)
         └─ Mock booking service — /api/booking (seed doctors/slots, handoff CTA)
 ```
 
-The LLM (`gpt-4.1-mini` on OpenAI) powers generation and classifiers. Embeddings and reranking
+The LLM (`gpt-4.1-mini` on OpenAI) powers generation, classifiers, and query rewrite. Embeddings and reranking
 run on **FPT AI Factory** (Vietnam/Japan data centers) — a Vietnamese sovereign cloud for retrieval.
 The vector store is the one component we run ourselves (pgvector on Postgres).
 
@@ -62,19 +62,47 @@ Order matters — safety checks run before any retrieval or generation:
 4. **Intent & scope guardrail.** Multi-label classifier over five intents —
    `booking | bhyt_pricing | procedures | hospital_info | doctor_schedule` — plus in-scope check.
    No matched intent → fixed default response, stop (no retrieval, no generation).
-5. **Retrieve** (only if an informational intent is present). Hybrid: dense (embed + pgvector) ⊕
+5. **Rewrite the query** (only for informational intents). `gpt-4.1-mini` formalizes colloquial
+   Vietnamese into the medical/administrative terminology the reranker responds to (e.g. "mổ" →
+   "phẫu thuật"). Fails soft to the dictionary-expanded query — never blocks retrieval.
+6. **Retrieve** (only if an informational intent is present). Hybrid: dense (embed + pgvector) ⊕
    keyword/FTS + structured rules, fused via RRF, then reranked (`bge-reranker-v2-m3`) to a small
    top-k. Degrades to keyword-only if the embed/rerank endpoints are unavailable.
-6. **Grounding gate.** No confident candidate → "I don't know" + official channels (distinct
+7. **Grounding gate.** No confident candidate → "I don't know" + official channels (distinct
    from the intent/scope guardrail's refusal — see guide §6.2).
-7. **Generate.** `gpt-4.1-mini` answers only from the retrieved context, in Vietnamese, with
+8. **Generate.** `gpt-4.1-mini` answers only from the retrieved context, in Vietnamese, with
    citations, addressing every intent of a multi-part question.
-8. **Booking action.** If `booking` is among the matched intents, attach the appointment-creation
+9. **Booking action.** If `booking` is among the matched intents, attach the appointment-creation
    link + mocked schedule *in addition to* any informational answer (or alone, skipping
    retrieval, if booking is the only intent).
-9. **Stream + log.**
+10. **Stream + log.**
 
 Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md#3-the-chat-pipeline-the-heart-of-the-system).
+
+---
+
+## Data pipeline (offline)
+
+How `kb_chunks` actually gets populated from the live site and hospital PDFs — separate from, and
+upstream of, the chat pipeline above:
+
+```
+website + PDFs → S3 (raw) → clean text / vision-LLM OCR → S3 (cleaned)
+               → structure-aware chunk → S3 (chunk JSONL) → embed + upsert → kb_chunks
+```
+
+| Tool | Role |
+|---|---|
+| [`crawler/`](crawler/README.md) | crawl4ai/Playwright deep-crawl of the hospital site → clean markdown + sidecar → S3. |
+| [`pdf_ingest/`](pdf_ingest/README.md) | Native PDFs → `pymupdf4llm`; scanned PDFs → vision-LLM OCR (`gpt-4.1-mini`, concurrent per-page) → S3. |
+| [`chunking/`](chunking/README.md) | Structure-aware recursive chunking of cleaned markdown → `kb_chunks`-shaped JSONL → S3. |
+| [`kb_ingest/`](kb_ingest/README.md) | Embeds JSONL chunks (FPT `vietnamese-embedding`) and upserts into `kb_chunks`. |
+
+Four standalone Python tools (own deps/env each — see their READMEs for detail this file doesn't
+duplicate). Independent of the Next.js app; the only coupling is the shared `kb_chunks` table,
+which this pipeline and [`lib/rag/ingest.ts`](lib/rag/ingest.ts) (the hand-curated
+`hackathon_docs/kb/` path) both write to safely — disjoint id-prefix namespaces, same
+`on conflict … do update` upsert semantics.
 
 ---
 
@@ -85,14 +113,17 @@ Full detail: [guide §3](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 | **Frontend** | Next.js/React chat widget — streamed answers, citation chips, distinct "I don't know", EMERGENCY, and normal-symptom-redirect UI states. |
 | **Orchestration** | `/api/chat` route handler — runs the pipeline above. |
 | **Conversation history summarization** | Own module — condenses prior turns into short context for this turn's classifiers/retrieval/generation; fails soft, never blocks the safety guardrail. |
+| **Query rewrite** | Own module — formalizes colloquial Vietnamese into reranker-friendly terminology; fails soft to the dictionary-expanded query. |
 | **Hybrid retrieval + KB** | Dense (FPT `vietnamese-embedding`) ⊕ keyword/FTS + structured rules → RRF fuse → rerank (FPT `bge-reranker-v2-m3`), scoped to four informational intents (`bhyt_pricing`/`procedures`/`hospital_info`/`doctor_schedule`). |
-| **OpenAI LLM** | `gpt-4.1-mini` — generation and both classifiers (severity + intent/scope). |
+| **OpenAI LLM** | `gpt-4.1-mini` — generation, both classifiers (severity + intent/scope), and query rewrite. |
 | **FPT AI Factory** | `vietnamese-embedding` + `bge-reranker-v2-m3` — embeddings and reranking, Vietnam/Japan data centers. |
 | **pgvector / Postgres** | Single `kb_chunks` table: content, metadata, dense vector, `tsvector` — hybrid retrieval is one SQL query. |
 | **Mock booking service** | `/api/booking` — appointment-creation link + simulated schedule data, handoff to real hospital channels. |
 | **Symptom & emergency guardrail** | Own module — sole severity detector (`none`/`normal`/`serious`), fail-safe on error, raises a mocked support case on `serious`, redirects to booking on `normal`. |
 | **Intent & scope guardrail** | Own module — multi-label classifier over the five intents; out-of-scope → fixed default response. |
 | **Observability** | Structured logging (query, retrieval sources, severity/intent verdicts, tokens, latency) — feeds the demo and the required AI-collaboration log. |
+| **Offline data pipeline** | Four standalone Python tools (crawl → extract/OCR → chunk → embed/upsert) that populate `kb_chunks` from the live site + scanned PDFs — see [Data pipeline (offline)](#data-pipeline-offline) above. Independent of the Next.js app. |
+| **RAG eval harness** | `npm run eval:dump` runs the real retrieve→rerank→generate stages over a golden set and dumps per-query traces (chunk ids, context, answer) — the chat route itself exposes none of that. `rag_eval/` (standalone Python, RAGAS) scores the dump: Recall@k/Precision@k/MRR/nDCG@k (retrieval), faithfulness/answer relevance/context precision/context recall (LLM-judge, `gpt-5.5`), and citation correctness. |
 
 Rationale/tradeoffs for each tool: [guide §4](hackathon_docs/guide/TrustTim_Architecture-and-Implementation-Guide.md#4-tech-stack--tool--why--benefits--drawbacks).
 
@@ -101,7 +132,7 @@ Rationale/tradeoffs for each tool: [guide §4](hackathon_docs/guide/TrustTim_Arc
 ## Tech stack at a glance
 
 - **Next.js (App Router) + Vercel** — one TypeScript app, UI + API, push-to-deploy.
-- **OpenAI** — `gpt-4.1-mini` (generation + classifiers).
+- **OpenAI** — `gpt-4.1-mini` (generation + classifiers + query rewrite).
 - **FPT AI Factory** — `vietnamese-embedding`, `bge-reranker-v2-m3`, pay-as-you-go, VN/JP region.
 - **pgvector on Postgres** (Supabase/Neon free tier for the demo) — vectors + keyword FTS in one datastore.
 - **Vercel AI SDK** — streaming chat plumbing.
@@ -133,19 +164,25 @@ Full detail: [guide §5](hackathon_docs/guide/TrustTim_Architecture-and-Implemen
 │  ├─ page.tsx                     # chat UI (widget)
 │  └─ api/{chat,booking,emergency}/route.ts
 ├─ lib/
-│  ├─ llm/client.ts                # OpenAI gpt-4.1-mini (generation + classifiers)
-│  ├─ prompt/{severity-classifier,intent-classifier,generate-answer,summarize-history}.ts  # all LLM system prompts, one file each
+│  ├─ llm/client.ts                # OpenAI gpt-4.1-mini (generation + classifiers + rewrite)
+│  ├─ prompt/{severity-classifier,intent-classifier,generate-answer,summarize-history,query-rewrite}.ts  # all LLM system prompts, one file each
 │  ├─ embeddings/client.ts         # FPT vietnamese-embedding + bge-reranker-v2-m3
 │  ├─ db/{schema.sql,client.ts,setup.ts}  # pgvector: kb_chunks + indexes
-│  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,retrieve,rerank,generate}.ts
+│  ├─ rag/{kb-parser,dictionary,rules,ingest,normalize,rewrite,retrieve,rerank,generate}.ts
 │  ├─ emergency/{classify,responses,case}.ts
 │  ├─ scope/{classify,responses}.ts
 │  ├─ booking/mock-data.ts
 │  ├─ chat/{pipeline,summarize}.ts # the ordered pipeline + history summarization, called by app/api/chat/route.ts
 │  └─ usage.ts                     # token/cost tracker for the eval report
 ├─ hackathon_docs/kb/*.md|*.json   # curated chunks + rules.json + dictionary.json (KB source)
-├─ data/eval/*.json                # emergency / scope / faq golden sets
+├─ data/eval/*.json                # emergency / scope / faq / golden-answers (RAGAS) sets
+├─ data/eval/runs/latest.jsonl     # pipeline traces dumped by `npm run eval:dump`, input to rag_eval/
 ├─ scripts/{eval,selfcheck}.ts
+├─ crawler/                        # standalone: crawl4ai deep-crawl → S3 (own README)
+├─ pdf_ingest/                     # standalone: PDF → markdown (native/vision-OCR) → S3 (own README)
+├─ chunking/                       # standalone: structure-aware chunking → S3 JSONL (own README)
+├─ kb_ingest/                      # standalone: embed + upsert JSONL → kb_chunks (own README)
+├─ rag_eval/                       # standalone: RAGAS retrieval + answer-quality eval (own README)
 ├─ Dockerfile
 └─ README.md
 ```
@@ -173,8 +210,15 @@ These are load-bearing — don't break them when implementing:
 - **History summarization fails soft, never fails safe.** An error condensing prior turns never
   blocks or delays the severity guardrail; it degrades to no conversation context, exactly like
   retrieval's keyword-only and rerank's fusion-order fallbacks.
-- **All inference stays on FPT AI Factory** (Vietnamese sovereign cloud, VN/JP), behind one
-  OpenAI-compatible client — model/endpoint swaps are an env-var change.
+- **Query rewrite fails soft, same rule.** An error rewriting the query degrades to the
+  dictionary-expanded query — retrieval never blocks on it.
+- **The offline data pipeline and the hand-curated KB path share `kb_chunks` safely.** The four
+  Python tools' chunks and `lib/rag/ingest.ts`'s hand-curated chunks use disjoint id-prefix
+  namespaces with the same `on conflict … do update` upsert — either can run without colliding
+  with or clobbering the other.
+- **Generation, classifiers, and query rewrite run on OpenAI** (`gpt-4.1-mini`); **embeddings and
+  reranking run on FPT AI Factory** (Vietnamese sovereign cloud, VN/JP) — each behind its own
+  OpenAI-compatible client, so either provider swaps independently via env vars.
 - **The product is not the model.** The guardrails, citations, "I don't know" behavior, and
   booking handoff are what TrustTim *is* — the LLM is a supervised component inside it.
 
